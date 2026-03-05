@@ -1,0 +1,7 @@
+import { Stack } from 'expo-router';
+
+export default function BookmarksLayout() {
+  return (
+    <Stack screenOptions={{ headerShown: false }} />
+  );
+}
