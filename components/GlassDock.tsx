@@ -12,12 +12,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, {
-  Defs,
-  LinearGradient as SvgLinearGradient,
-  Stop,
-  Rect,
-} from 'react-native-svg';
 import {
   Headset,
   MessageCircle,
@@ -47,7 +41,6 @@ const GAP = 8;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const AnimatedView = Animated.View;
-const AnimatedSvg = Animated.createAnimatedComponent(Svg);
 
 export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -60,9 +53,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     );
   }, [tabCount]);
 
-  const dockHeight = useMemo(() => {
-    return TAB_SIZE + V_PADDING * 2;
-  }, []);
+  const dockHeight = useMemo(() => TAB_SIZE + V_PADDING * 2, []);
 
   const cellWidth = useMemo(() => {
     return (dockWidth - H_PADDING * 2) / tabCount;
@@ -73,10 +64,10 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   const glossShift = useRef(new Animated.Value(0)).current;
   const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
 
-  // Purple “breathing” glow like old Apple sleep light
-  const pulse = useRef(new Animated.Value(0)).current;
-  // Rotating beam around the dock
-  const beamRotate = useRef(new Animated.Value(0)).current;
+  // dock glow
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  // active pill glow
+  const activeGlowPulse = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.spring(position, {
@@ -120,40 +111,48 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   }, [state.index, position, pillScale, glossShift, iconScales, state.routes]);
 
   useEffect(() => {
-    const pulseLoop = Animated.loop(
+    const dockGlowLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
+        Animated.timing(glowPulse, {
           toValue: 1,
-          duration: 1900,
+          duration: 2200,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
-        Animated.timing(pulse, {
+        Animated.timing(glowPulse, {
           toValue: 0,
-          duration: 1900,
+          duration: 2200,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ])
     );
 
-    const beamLoop = Animated.loop(
-      Animated.timing(beamRotate, {
-        toValue: 1,
-        duration: 4200,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
+    const pillGlowLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(activeGlowPulse, {
+          toValue: 1,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(activeGlowPulse, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ])
     );
 
-    pulseLoop.start();
-    beamLoop.start();
+    dockGlowLoop.start();
+    pillGlowLoop.start();
 
     return () => {
-      pulseLoop.stop();
-      beamLoop.stop();
+      dockGlowLoop.stop();
+      pillGlowLoop.stop();
     };
-  }, [pulse, beamRotate]);
+  }, [glowPulse, activeGlowPulse]);
 
   const pillTranslateX = position.interpolate({
     inputRange: state.routes.map((_, i) => i),
@@ -162,24 +161,24 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     ),
   });
 
-  const beamSpin = beamRotate.interpolate({
+  const dockGlowOpacity = glowPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: [0.12, 0.3],
   });
 
-  const glowOpacity = pulse.interpolate({
+  const dockGlowScale = glowPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.18, 0.55],
+    outputRange: [0.99, 1.025],
   });
 
-  const glowScale = pulse.interpolate({
+  const pillGlowOpacity = activeGlowPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.985, 1.03],
+    outputRange: [0.18, 0.38],
   });
 
-  const glowShadowOpacity = pulse.interpolate({
+  const pillGlowScale = activeGlowPulse.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.12, 0.32],
+    outputRange: [1, 1.08],
   });
 
   const handleTabPress = useCallback(
@@ -204,60 +203,20 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
       <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
-        {/* Pulsing purple glow */}
+        {/* soft purple outer glow */}
         <AnimatedView
           pointerEvents="none"
           style={[
-            styles.purpleGlow,
+            styles.dockGlow,
             {
-              width: dockWidth + 12,
-              height: dockHeight + 12,
-              borderRadius: DOCK_RADIUS + 8,
-              opacity: glowOpacity,
-              transform: [{ scale: glowScale }],
-              shadowOpacity: glowShadowOpacity as unknown as number,
+              width: dockWidth + 18,
+              height: dockHeight + 18,
+              borderRadius: DOCK_RADIUS + 12,
+              opacity: dockGlowOpacity,
+              transform: [{ scale: dockGlowScale }],
             },
           ]}
         />
-
-        {/* Rotating edge beam */}
-        <AnimatedView
-          pointerEvents="none"
-          style={[
-            styles.beamWrap,
-            {
-              width: dockWidth + 8,
-              height: dockHeight + 8,
-              borderRadius: DOCK_RADIUS + 6,
-              transform: [{ rotate: beamSpin }],
-            },
-          ]}
-        >
-          <AnimatedSvg width={dockWidth + 8} height={dockHeight + 8} style={styles.beamSvg}>
-            <Defs>
-              <SvgLinearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor="rgba(255,255,255,0)" />
-                <Stop offset="28%" stopColor="rgba(170,110,255,0)" />
-                <Stop offset="50%" stopColor="rgba(182,116,255,0.95)" />
-                <Stop offset="62%" stopColor="rgba(255,255,255,0.98)" />
-                <Stop offset="76%" stopColor="rgba(182,116,255,0.55)" />
-                <Stop offset="100%" stopColor="rgba(255,255,255,0)" />
-              </SvgLinearGradient>
-            </Defs>
-
-            <Rect
-              x="2"
-              y="2"
-              width={dockWidth + 4}
-              height={dockHeight + 4}
-              rx={DOCK_RADIUS + 4}
-              ry={DOCK_RADIUS + 4}
-              fill="transparent"
-              stroke="url(#beamGradient)"
-              strokeWidth="2.4"
-            />
-          </AnimatedSvg>
-        </AnimatedView>
 
         <BlurView intensity={95} tint="light" style={styles.dock}>
           <View pointerEvents="none" style={styles.baseFill} />
@@ -312,6 +271,17 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
               },
             ]}
           >
+            {/* active pill purple glow */}
+            <AnimatedView
+              style={[
+                styles.pillGlow,
+                {
+                  opacity: pillGlowOpacity,
+                  transform: [{ scale: pillGlowScale }],
+                },
+              ]}
+            />
+
             <View style={styles.pillHalo} />
 
             <BlurView intensity={100} tint="light" style={styles.pillBlur}>
@@ -415,23 +385,14 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
 
-  purpleGlow: {
+  dockGlow: {
     position: 'absolute',
-    backgroundColor: 'rgba(126, 70, 255, 0.20)',
+    backgroundColor: 'rgba(126,70,255,0.28)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 22,
-    elevation: 18,
-  },
-
-  beamWrap: {
-    position: 'absolute',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  beamSvg: {
-    opacity: 0.95,
+    shadowOpacity: 0.45,
+    shadowRadius: 24,
+    elevation: 20,
   },
 
   dock: {
@@ -511,6 +472,16 @@ const styles = StyleSheet.create({
     top: V_PADDING,
     borderRadius: 20,
     overflow: 'visible',
+  },
+
+  pillGlow: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 22,
+    backgroundColor: 'rgba(126,70,255,0.30)',
+    shadowColor: '#8B5CFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
   },
 
   pillHalo: {
