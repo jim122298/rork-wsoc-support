@@ -1,14 +1,12 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Pressable,
   StyleSheet,
   Animated,
-  Dimensions,
-  PanResponder,
-  Easing,
   Platform,
-  Text,
+  Dimensions,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -34,53 +32,63 @@ const ICON_MAP: Record<
   settings: Ellipsis,
 };
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const DIAL_WIDTH = Math.min(SCREEN_WIDTH - 28, 340);
-const DIAL_HEIGHT = 132;
-const CENTER_SIZE = 78;
-const ITEM_SIZE = 52;
-const STEP_DRAG = 48;
-
 const ACTIVE = '#4E2B87';
-const INACTIVE = 'rgba(24,24,28,0.62)';
+const INACTIVE = 'rgba(22,22,28,0.62)';
 
+const TAB_SIZE = 50;
+const ACTIVE_SIZE = 42;
+const DOCK_RADIUS = 24;
+const H_PADDING = 12;
+const V_PADDING = 8;
+const GAP = 8;
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AnimatedView = Animated.View;
 
-export default function CameraDialDock({ state, navigation }: BottomTabBarProps) {
+export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const routes = state.routes;
-  const count = routes.length;
+  const tabCount = state.routes.length;
 
-  const currentIndexRef = useRef(state.index);
+  const contentWidth = useMemo(
+    () => tabCount * TAB_SIZE + (tabCount - 1) * GAP,
+    [tabCount]
+  );
 
-  const dialShift = useRef(new Animated.Value(state.index)).current;
-  const centerScale = useRef(new Animated.Value(1)).current;
-  const centerGlow = useRef(new Animated.Value(0.72)).current;
-  const sheenSweep = useRef(new Animated.Value(-18)).current;
-  const dragX = useRef(new Animated.Value(0)).current;
+  const dockWidth = useMemo(() => {
+    return Math.min(SCREEN_WIDTH - 36, contentWidth + H_PADDING * 2);
+  }, [contentWidth]);
 
-  const iconScales = useRef(routes.map(() => new Animated.Value(1))).current;
-  const iconOpacity = useRef(routes.map(() => new Animated.Value(0.72))).current;
+  const dockHeight = TAB_SIZE + V_PADDING * 2;
+
+  const leadingOffset = useMemo(() => {
+    return (dockWidth - contentWidth) / 2;
+  }, [dockWidth, contentWidth]);
+
+  const position = useRef(new Animated.Value(state.index)).current;
+  const bubbleScale = useRef(new Animated.Value(1)).current;
+  const bubbleGlow = useRef(new Animated.Value(0.7)).current;
+  const sheenX = useRef(new Animated.Value(-18)).current;
+
+  const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
+  const iconY = useRef(state.routes.map(() => new Animated.Value(0))).current;
+  const iconOpacity = useRef(state.routes.map(() => new Animated.Value(0.78))).current;
 
   useEffect(() => {
-    currentIndexRef.current = state.index;
-
     Animated.parallel([
-      Animated.spring(dialShift, {
+      Animated.spring(position, {
         toValue: state.index,
         tension: 120,
         friction: 16,
         useNativeDriver: true,
       }),
       Animated.sequence([
-        Animated.spring(centerScale, {
-          toValue: 1.05,
+        Animated.spring(bubbleScale, {
+          toValue: 1.06,
           tension: 220,
           friction: 16,
           useNativeDriver: true,
         }),
-        Animated.spring(centerScale, {
+        Animated.spring(bubbleScale, {
           toValue: 1,
           tension: 220,
           friction: 18,
@@ -88,14 +96,14 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
         }),
       ]),
       Animated.sequence([
-        Animated.timing(centerGlow, {
+        Animated.timing(bubbleGlow, {
           toValue: 1,
           duration: 180,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(centerGlow, {
-          toValue: 0.78,
+        Animated.timing(bubbleGlow, {
+          toValue: 0.76,
           duration: 240,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
@@ -103,15 +111,15 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
       ]),
     ]).start();
 
-    sheenSweep.setValue(-18);
+    sheenX.setValue(-18);
     Animated.sequence([
-      Animated.timing(sheenSweep, {
+      Animated.timing(sheenX, {
         toValue: 12,
         duration: 300,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }),
-      Animated.timing(sheenSweep, {
+      Animated.timing(sheenX, {
         toValue: 6,
         duration: 120,
         easing: Easing.out(Easing.quad),
@@ -119,84 +127,78 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
       }),
     ]).start();
 
-    routes.forEach((_, i) => {
+    state.routes.forEach((_, i) => {
       const focused = i === state.index;
+
       Animated.parallel([
         Animated.spring(iconScales[i], {
-          toValue: focused ? 1.08 : 1,
+          toValue: focused ? 1.06 : 1,
+          tension: 220,
+          friction: 18,
+          useNativeDriver: true,
+        }),
+        Animated.spring(iconY[i], {
+          toValue: focused ? -1 : 0,
           tension: 220,
           friction: 18,
           useNativeDriver: true,
         }),
         Animated.timing(iconOpacity[i], {
-          toValue: focused ? 1 : 0.72,
+          toValue: focused ? 1 : 0.76,
           duration: 180,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]).start();
     });
-  }, [state.index, routes, dialShift, centerScale, centerGlow, sheenSweep, iconScales, iconOpacity]);
+  }, [state.index, position, bubbleScale, bubbleGlow, sheenX, iconScales, iconY, iconOpacity, state.routes]);
 
-  const glowOpacity = centerGlow.interpolate({
-    inputRange: [0.72, 1],
-    outputRange: [0.16, 0.30],
+  const bubbleTranslateX = position.interpolate({
+    inputRange: state.routes.map((_, i) => i),
+    outputRange: state.routes.map((_, i) => {
+      const itemX = leadingOffset + i * (TAB_SIZE + GAP);
+      return itemX + (TAB_SIZE - ACTIVE_SIZE) / 2;
+    }),
   });
 
-  const navigateToIndex = (nextIndex: number) => {
-    const route = routes[nextIndex];
-    if (!route || nextIndex === currentIndexRef.current) return;
+  const glowOpacity = bubbleGlow.interpolate({
+    inputRange: [0.7, 1],
+    outputRange: [0.14, 0.28],
+  });
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate(route.name as never);
-  };
+  const handleTabPress = useCallback(
+    (routeKey: string, routeName: string, isFocused: boolean) => {
+      const event = navigation.emit({
+        type: 'tabPress',
+        target: routeKey,
+        canPreventDefault: true,
+      });
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6,
-        onPanResponderMove: (_, g) => {
-          dragX.setValue(g.dx);
-        },
-        onPanResponderRelease: (_, g) => {
-          const raw = currentIndexRef.current - g.dx / STEP_DRAG;
-          const nextIndex = Math.max(0, Math.min(count - 1, Math.round(raw)));
-
-          Animated.spring(dragX, {
-            toValue: 0,
-            tension: 120,
-            friction: 16,
-            useNativeDriver: true,
-          }).start();
-
-          if (nextIndex !== currentIndexRef.current) {
-            Haptics.selectionAsync();
-            navigateToIndex(nextIndex);
-          }
-        },
-        onPanResponderTerminate: () => {
-          Animated.spring(dragX, {
-            toValue: 0,
-            tension: 120,
-            friction: 16,
-            useNativeDriver: true,
-          }).start();
-        },
-      }),
-    [count, navigation, dragX]
+      if (!isFocused && !event.defaultPrevented) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        navigation.navigate(routeName as never);
+      }
+    },
+    [navigation]
   );
-
-  const FocusedIcon = ICON_MAP[routes[state.index]?.name] || Ellipsis;
-  const activeLabel =
-    routes[state.index]?.name?.replace(/[()]/g, '').replace(/^\w/, (c) => c.toUpperCase()) || '';
 
   return (
     <View
       pointerEvents="box-none"
       style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
-      <View style={styles.wrap} {...panResponder.panHandlers}>
-        <View style={styles.shadowBase} />
+      <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.baseAura,
+            {
+              width: dockWidth + 14,
+              height: dockHeight + 14,
+              borderRadius: DOCK_RADIUS + 10,
+            },
+          ]}
+        />
 
         <BlurView intensity={100} tint="light" style={styles.dock}>
           <View pointerEvents="none" style={styles.baseFill} />
@@ -209,70 +211,53 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
               'rgba(255,255,255,0.12)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.18, 0.44, 1]}
+            locations={[0, 0.16, 0.42, 1]}
             style={styles.topWash}
           />
 
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0)',
-              'rgba(200,204,220,0)',
-              'rgba(165,170,190,0.08)',
-              'rgba(128,132,150,0.14)',
+              'rgba(255,255,255,0.00)',
+              'rgba(222,226,236,0.00)',
+              'rgba(188,194,208,0.09)',
+              'rgba(145,150,168,0.16)',
             ]}
-            locations={[0, 0.48, 0.78, 1]}
+            locations={[0, 0.5, 0.78, 1]}
             style={styles.bottomDensity}
           />
 
           <View pointerEvents="none" style={styles.outerStroke} />
           <View pointerEvents="none" style={styles.innerStroke} />
 
-          <View style={styles.row}>
-            {routes.map((route, i) => {
-              const Icon = ICON_MAP[route.name] || Ellipsis;
-              const focused = i === state.index;
-
-              return (
-                <Pressable
-                  key={route.key}
-                  onPress={() => navigateToIndex(i)}
-                  style={styles.itemButton}
-                >
-                  <AnimatedView
-                    style={{
-                      opacity: iconOpacity[i],
-                      transform: [{ scale: iconScales[i] }],
-                    }}
-                  >
-                    {focused ? (
-                      <>
-                        <Icon size={20} color="rgba(255,255,255,0.88)" strokeWidth={2.2} />
-                        <View style={styles.iconOverlay}>
-                          <Icon size={20} color={ACTIVE} strokeWidth={2.2} />
-                        </View>
-                      </>
-                    ) : (
-                      <Icon size={19} color={INACTIVE} strokeWidth={2.1} />
-                    )}
-                  </AnimatedView>
-                </Pressable>
-              );
-            })}
+          <View pointerEvents="none" style={styles.reflectionBandWrap}>
+            <LinearGradient
+              colors={[
+                'rgba(255,255,255,0)',
+                'rgba(255,255,255,0.10)',
+                'rgba(255,255,255,0.26)',
+                'rgba(255,255,255,0.08)',
+                'rgba(255,255,255,0)',
+              ]}
+              locations={[0, 0.18, 0.5, 0.78, 1]}
+              style={styles.reflectionBand}
+            />
           </View>
 
           <AnimatedView
             pointerEvents="none"
             style={[
-              styles.centerLensWrap,
+              styles.bubbleWrap,
               {
-                transform: [{ scale: centerScale }],
+                width: ACTIVE_SIZE,
+                height: ACTIVE_SIZE,
+                transform: [{ translateX: bubbleTranslateX }, { scale: bubbleScale }],
               },
             ]}
           >
-            <AnimatedView style={[styles.centerLensGlow, { opacity: glowOpacity }]} />
+            <AnimatedView style={[styles.bubbleGlow, { opacity: glowOpacity }]} />
 
-            <BlurView intensity={100} tint="light" style={styles.centerLens}>
+            <BlurView intensity={100} tint="light" style={styles.bubble}>
               <LinearGradient
                 colors={[
                   'rgba(255,255,255,0.95)',
@@ -283,24 +268,22 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
                 style={StyleSheet.absoluteFillObject}
               />
 
-              <View style={styles.centerLensTint} />
+              <View style={styles.bubbleTint} />
 
               <LinearGradient
                 colors={[
                   'rgba(255,255,255,1)',
                   'rgba(255,255,255,0.58)',
-                  'rgba(255,255,255,0)',
+                  'rgba(255,255,255,0.00)',
                 ]}
                 locations={[0, 0.34, 1]}
-                style={styles.centerLensHighlight}
+                style={styles.bubbleHighlight}
               />
 
               <AnimatedView
                 style={[
-                  styles.centerSheen,
-                  {
-                    transform: [{ translateX: sheenSweep }, { rotate: '-16deg' }],
-                  },
+                  styles.bubbleSheen,
+                  { transform: [{ translateX: sheenX }, { rotate: '-16deg' }] },
                 ]}
               >
                 <LinearGradient
@@ -310,25 +293,54 @@ export default function CameraDialDock({ state, navigation }: BottomTabBarProps)
                     'rgba(255,255,255,0)',
                   ]}
                   locations={[0, 0.5, 1]}
-                  style={styles.centerSheenGradient}
+                  style={styles.bubbleSheenGradient}
                 />
               </AnimatedView>
 
-              <View style={styles.centerInnerStroke} />
-              <View style={styles.centerOuterStroke} />
-
-              <View style={styles.centerIconWrap}>
-                <FocusedIcon size={26} color="rgba(255,255,255,0.88)" strokeWidth={2.25} />
-                <View style={styles.iconOverlay}>
-                  <FocusedIcon size={26} color={ACTIVE} strokeWidth={2.25} />
-                </View>
-              </View>
+              <View style={styles.bubbleInnerStroke} />
+              <View style={styles.bubbleOuterStroke} />
             </BlurView>
           </AnimatedView>
 
-          <View pointerEvents="none" style={styles.labelWrap}>
-            <Text style={styles.modeLabel}>{activeLabel}</Text>
-            <Text style={styles.modeHint}>Swipe to change mode</Text>
+          <View style={styles.row}>
+            {state.routes.map((route, index) => {
+              const focused = state.index === index;
+              const Icon = ICON_MAP[route.name] || Ellipsis;
+
+              return (
+                <Pressable
+                  key={route.key}
+                  onPress={() => handleTabPress(route.key, route.name, focused)}
+                  style={styles.button}
+                  testID={`tab-${route.name}`}
+                >
+                  <AnimatedView
+                    style={{
+                      width: TAB_SIZE,
+                      height: TAB_SIZE,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: iconOpacity[index],
+                      transform: [
+                        { scale: iconScales[index] },
+                        { translateY: iconY[index] },
+                      ],
+                    }}
+                  >
+                    {focused ? (
+                      <>
+                        <Icon size={19} color="rgba(255,255,255,0.86)" strokeWidth={2.2} />
+                        <View style={styles.iconOverlay}>
+                          <Icon size={19} color={ACTIVE} strokeWidth={2.2} />
+                        </View>
+                      </>
+                    ) : (
+                      <Icon size={19} color={INACTIVE} strokeWidth={2.1} />
+                    )}
+                  </AnimatedView>
+                </Pressable>
+              );
+            })}
           </View>
         </BlurView>
 
@@ -349,38 +361,39 @@ const styles = StyleSheet.create({
   },
 
   wrap: {
-    width: DIAL_WIDTH,
-    height: DIAL_HEIGHT + 26,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
   },
 
-  shadowBase: {
+  baseAura: {
     position: 'absolute',
-    width: DIAL_WIDTH - 8,
-    height: DIAL_HEIGHT,
-    bottom: 0,
-    borderRadius: 34,
-    backgroundColor: 'rgba(126,70,255,0.05)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 22 },
-    shadowOpacity: 0.2,
-    shadowRadius: 28,
-    elevation: 22,
+    backgroundColor: 'rgba(118,86,255,0.05)',
+    shadowColor: '#8B5CFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 12,
   },
 
   dock: {
-    width: DIAL_WIDTH,
-    height: DIAL_HEIGHT,
-    borderRadius: 34,
-    overflow: 'hidden',
+    width: '100%',
+    height: '100%',
+    borderRadius: DOCK_RADIUS,
+    paddingHorizontal: H_PADDING,
+    paddingVertical: V_PADDING,
     backgroundColor: 'rgba(255,255,255,0.16)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 20,
+    overflow: 'hidden',
   },
 
   baseFill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 34,
+    borderRadius: DOCK_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
 
@@ -389,7 +402,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: '56%',
+    height: '58%',
+    borderTopLeftRadius: DOCK_RADIUS,
+    borderTopRightRadius: DOCK_RADIUS,
   },
 
   bottomDensity: {
@@ -398,13 +413,30 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: '72%',
+    borderBottomLeftRadius: DOCK_RADIUS,
+    borderBottomRightRadius: DOCK_RADIUS,
+  },
+
+  reflectionBandWrap: {
+    position: 'absolute',
+    top: -6,
+    bottom: -6,
+    left: '32%',
+    width: 64,
+    opacity: 0.9,
+    transform: [{ rotate: '-15deg' }],
+  },
+
+  reflectionBand: {
+    flex: 1,
+    borderRadius: 40,
   },
 
   outerStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 34,
+    borderRadius: DOCK_RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.60)',
+    borderColor: 'rgba(255,255,255,0.58)',
   },
 
   innerStroke: {
@@ -413,7 +445,7 @@ const styles = StyleSheet.create({
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: 33,
+    borderRadius: DOCK_RADIUS - 1,
     borderWidth: 0.6,
     borderTopColor: 'rgba(255,255,255,0.30)',
     borderLeftColor: 'rgba(255,255,255,0.18)',
@@ -421,87 +453,66 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
 
-  row: {
+  bubbleWrap: {
     position: 'absolute',
-    left: 14,
-    right: 14,
-    top: 56,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-
-  itemButton: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    borderRadius: ITEM_SIZE / 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  centerLensWrap: {
-    position: 'absolute',
-    alignSelf: 'center',
-    top: -18,
-    width: CENTER_SIZE,
-    height: CENTER_SIZE,
-    borderRadius: CENTER_SIZE / 2,
+    top: V_PADDING + (TAB_SIZE - ACTIVE_SIZE) / 2,
+    borderRadius: ACTIVE_SIZE / 2,
     overflow: 'visible',
   },
 
-  centerLensGlow: {
+  bubbleGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: CENTER_SIZE / 2 + 4,
+    borderRadius: ACTIVE_SIZE / 2 + 4,
     backgroundColor: 'rgba(126,70,255,0.24)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.42,
-    shadowRadius: 16,
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
   },
 
-  centerLens: {
+  bubble: {
     flex: 1,
-    borderRadius: CENTER_SIZE / 2,
+    borderRadius: ACTIVE_SIZE / 2,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.30)',
   },
 
-  centerLensTint: {
+  bubbleTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95,47,153,0.08)',
+    backgroundColor: 'rgba(95,47,153,0.07)',
   },
 
-  centerLensHighlight: {
+  bubbleHighlight: {
     position: 'absolute',
-    left: 4,
-    right: 4,
-    top: 3,
-    height: '45%',
-    borderTopLeftRadius: CENTER_SIZE / 2,
-    borderTopRightRadius: CENTER_SIZE / 2,
+    left: 3,
+    right: 3,
+    top: 2,
+    height: '46%',
+    borderTopLeftRadius: ACTIVE_SIZE / 2,
+    borderTopRightRadius: ACTIVE_SIZE / 2,
   },
 
-  centerSheen: {
+  bubbleSheen: {
     position: 'absolute',
-    top: 7,
-    bottom: 7,
-    left: 10,
-    width: 20,
-    opacity: 0.62,
+    top: 5,
+    bottom: 5,
+    left: 7,
+    width: 18,
+    opacity: 0.6,
   },
 
-  centerSheenGradient: {
+  bubbleSheenGradient: {
     flex: 1,
-    borderRadius: 18,
+    borderRadius: 14,
   },
 
-  centerInnerStroke: {
+  bubbleInnerStroke: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: CENTER_SIZE / 2,
+    borderRadius: ACTIVE_SIZE / 2,
     borderWidth: 0.8,
     borderTopColor: 'rgba(255,255,255,0.58)',
     borderLeftColor: 'rgba(255,255,255,0.26)',
@@ -509,17 +520,26 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
 
-  centerOuterStroke: {
+  bubbleOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: CENTER_SIZE / 2,
+    borderRadius: ACTIVE_SIZE / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
   },
 
-  centerIconWrap: {
-    flex: 1,
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: GAP,
+  },
+
+  button: {
+    width: TAB_SIZE,
+    height: TAB_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: TAB_SIZE / 2,
   },
 
   iconOverlay: {
@@ -528,34 +548,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  labelWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 14,
-    alignItems: 'center',
-  },
-
-  modeLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: 'rgba(30,18,54,0.95)',
-    letterSpacing: 0.2,
-  },
-
-  modeHint: {
-    marginTop: 2,
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(50,50,58,0.55)',
-  },
-
   webFallback: {
-    position: 'absolute',
-    bottom: 0,
-    width: DIAL_WIDTH,
-    height: DIAL_HEIGHT,
-    borderRadius: 34,
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: DOCK_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.46)',
     ...(Platform.OS === 'web'
       ? ({
