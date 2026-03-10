@@ -21,7 +21,10 @@ import {
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
-const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string; strokeWidth?: number }>> = {
+const ICON_MAP: Record<
+  string,
+  React.ComponentType<{ size: number; color: string; strokeWidth?: number }>
+> = {
   '(home)': Headset,
   scanner: MessageCircle,
   categories: Grid3x3,
@@ -29,14 +32,15 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   settings: Ellipsis,
 };
 
-const ACTIVE = '#4E2B87';
-const INACTIVE = 'rgba(18,18,24,0.62)';
+const ACTIVE = '#4F2B8A';
+const INACTIVE = 'rgba(20,20,24,0.62)';
 
-const TAB_SIZE = 56;
-const DOCK_RADIUS = 32;
-const H_PADDING = 14;
-const V_PADDING = 12;
-const GAP = 10;
+const TAB_SIZE = 50;
+const LENS_SIZE = 44;
+const DOCK_RADIUS = 24;
+const H_PADDING = 12;
+const V_PADDING = 8;
+const GAP = 8;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AnimatedView = Animated.View;
@@ -45,36 +49,33 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const tabCount = state.routes.length;
 
+  const contentWidth = useMemo(
+    () => tabCount * TAB_SIZE + (tabCount - 1) * GAP,
+    [tabCount]
+  );
+
   const dockWidth = useMemo(() => {
-    return Math.min(
-      SCREEN_WIDTH - 24,
-      tabCount * TAB_SIZE + (tabCount - 1) * GAP + H_PADDING * 2
-    );
-  }, [tabCount]);
+    return Math.min(SCREEN_WIDTH - 36, contentWidth + H_PADDING * 2);
+  }, [contentWidth]);
 
   const dockHeight = TAB_SIZE + V_PADDING * 2;
 
-  const cellWidth = useMemo(() => {
-    return TAB_SIZE + GAP;
-  }, []);
-
   const leadingOffset = useMemo(() => {
-    const usedWidth = tabCount * TAB_SIZE + (tabCount - 1) * GAP;
-    return (dockWidth - usedWidth) / 2;
-  }, [dockWidth, tabCount]);
+    return (dockWidth - contentWidth) / 2;
+  }, [dockWidth, contentWidth]);
 
   const activeIndex = useRef(new Animated.Value(state.index)).current;
   const lensScale = useRef(new Animated.Value(1)).current;
-  const lensGlow = useRef(new Animated.Value(0.6)).current;
+  const lensGlow = useRef(new Animated.Value(0.65)).current;
   const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
   const iconY = useRef(state.routes.map(() => new Animated.Value(0))).current;
-  const iconOpacity = useRef(state.routes.map(() => new Animated.Value(0.82))).current;
-  const sheenSweep = useRef(new Animated.Value(-26)).current;
+  const iconOpacity = useRef(state.routes.map(() => new Animated.Value(0.8))).current;
+  const sheenSweep = useRef(new Animated.Value(-18)).current;
 
   useEffect(() => {
     Animated.spring(activeIndex, {
       toValue: state.index,
-      tension: 115,
+      tension: 120,
       friction: 16,
       useNativeDriver: true,
     }).start();
@@ -82,7 +83,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     Animated.parallel([
       Animated.sequence([
         Animated.spring(lensScale, {
-          toValue: 1.07,
+          toValue: 1.06,
           tension: 220,
           friction: 16,
           useNativeDriver: true,
@@ -102,7 +103,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
           useNativeDriver: true,
         }),
         Animated.timing(lensGlow, {
-          toValue: 0.7,
+          toValue: 0.72,
           duration: 240,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
@@ -110,20 +111,20 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       ]),
       Animated.sequence([
         Animated.timing(sheenSweep, {
-          toValue: 16,
-          duration: 320,
+          toValue: 12,
+          duration: 300,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(sheenSweep, {
-          toValue: 8,
-          duration: 130,
+          toValue: 6,
+          duration: 120,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]),
     ]).start(() => {
-      sheenSweep.setValue(-26);
+      sheenSweep.setValue(-18);
     });
 
     state.routes.forEach((_, i) => {
@@ -131,7 +132,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
       Animated.parallel([
         Animated.spring(iconScales[i], {
-          toValue: focused ? 1.08 : 1,
+          toValue: focused ? 1.06 : 1,
           tension: 220,
           friction: 18,
           useNativeDriver: true,
@@ -154,14 +155,15 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   const lensTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, i) => i),
-    outputRange: state.routes.map(
-      (_, i) => leadingOffset + i * cellWidth
-    ),
+    outputRange: state.routes.map((_, i) => {
+      const itemX = leadingOffset + i * (TAB_SIZE + GAP);
+      return itemX + (TAB_SIZE - LENS_SIZE) / 2;
+    }),
   });
 
   const lensGlowOpacity = lensGlow.interpolate({
-    inputRange: [0.6, 1],
-    outputRange: [0.16, 0.30],
+    inputRange: [0.65, 1],
+    outputRange: [0.14, 0.28],
   });
 
   const handleTabPress = useCallback(
@@ -186,87 +188,81 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
       <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
-        {/* outer aura */}
         <View
           pointerEvents="none"
           style={[
             styles.baseAura,
             {
-              width: dockWidth + 18,
-              height: dockHeight + 18,
-              borderRadius: DOCK_RADIUS + 12,
+              width: dockWidth + 14,
+              height: dockHeight + 14,
+              borderRadius: DOCK_RADIUS + 10,
             },
           ]}
         />
 
         <BlurView intensity={100} tint="light" style={styles.dock}>
-          {/* base glass */}
           <View pointerEvents="none" style={styles.baseFill} />
 
-          {/* upper bright refraction */}
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.96)',
-              'rgba(255,255,255,0.50)',
+              'rgba(255,255,255,0.95)',
+              'rgba(255,255,255,0.52)',
               'rgba(255,255,255,0.12)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.18, 0.46, 1]}
+            locations={[0, 0.16, 0.42, 1]}
             style={styles.topWash}
           />
 
-          {/* lower density */}
           <LinearGradient
             pointerEvents="none"
             colors={[
               'rgba(255,255,255,0.00)',
               'rgba(222,226,236,0.00)',
-              'rgba(188,194,208,0.08)',
-              'rgba(148,152,168,0.15)',
+              'rgba(188,194,208,0.09)',
+              'rgba(145,150,168,0.16)',
             ]}
             locations={[0, 0.5, 0.78, 1]}
             style={styles.bottomDensity}
           />
 
-          {/* top rim glow */}
+          {/* older Mac dock-ish reflective stripe */}
+          <View pointerEvents="none" style={styles.reflectionBandWrap}>
+            <LinearGradient
+              colors={[
+                'rgba(255,255,255,0)',
+                'rgba(255,255,255,0.10)',
+                'rgba(255,255,255,0.30)',
+                'rgba(255,255,255,0.08)',
+                'rgba(255,255,255,0)',
+              ]}
+              locations={[0, 0.18, 0.5, 0.78, 1]}
+              style={styles.reflectionBand}
+            />
+          </View>
+
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(176,125,255,0.18)',
-              'rgba(176,125,255,0.06)',
+              'rgba(176,125,255,0.16)',
+              'rgba(176,125,255,0.05)',
               'rgba(176,125,255,0.00)',
             ]}
             locations={[0, 0.35, 1]}
             style={styles.topRim}
           />
 
-          {/* stationary light streak */}
-          <View pointerEvents="none" style={styles.streakWrap}>
-            <LinearGradient
-              colors={[
-                'rgba(255,255,255,0)',
-                'rgba(255,255,255,0.12)',
-                'rgba(255,255,255,0.28)',
-                'rgba(255,255,255,0.08)',
-                'rgba(255,255,255,0)',
-              ]}
-              locations={[0, 0.2, 0.5, 0.78, 1]}
-              style={styles.streak}
-            />
-          </View>
-
           <View pointerEvents="none" style={styles.outerStroke} />
           <View pointerEvents="none" style={styles.innerStroke} />
 
-          {/* clean lens */}
           <AnimatedView
             pointerEvents="none"
             style={[
               styles.lensWrap,
               {
-                width: TAB_SIZE,
-                height: TAB_SIZE,
+                width: LENS_SIZE,
+                height: LENS_SIZE,
                 transform: [{ translateX: lensTranslateX }, { scale: lensScale }],
               },
             ]}
@@ -283,8 +279,8 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             <BlurView intensity={100} tint="light" style={styles.lens}>
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,0.94)',
-                  'rgba(255,255,255,0.72)',
+                  'rgba(255,255,255,0.95)',
+                  'rgba(255,255,255,0.74)',
                   'rgba(255,255,255,0.28)',
                 ]}
                 locations={[0, 0.42, 1]}
@@ -296,7 +292,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
               <LinearGradient
                 colors={[
                   'rgba(255,255,255,1)',
-                  'rgba(255,255,255,0.56)',
+                  'rgba(255,255,255,0.58)',
                   'rgba(255,255,255,0.00)',
                 ]}
                 locations={[0, 0.34, 1]}
@@ -335,7 +331,6 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                   key={route.key}
                   onPress={() => handleTabPress(route.key, route.name, focused)}
                   style={styles.button}
-                  android_ripple={null as any}
                   testID={`tab-${route.name}`}
                 >
                   <AnimatedView
@@ -353,13 +348,13 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                   >
                     {focused ? (
                       <>
-                        <Icon size={20} color="rgba(255,255,255,0.86)" strokeWidth={2.2} />
+                        <Icon size={19} color="rgba(255,255,255,0.86)" strokeWidth={2.2} />
                         <View style={styles.iconOverlay}>
-                          <Icon size={20} color={ACTIVE} strokeWidth={2.2} />
+                          <Icon size={19} color={ACTIVE} strokeWidth={2.2} />
                         </View>
                       </>
                     ) : (
-                      <Icon size={20} color={INACTIVE} strokeWidth={2.1} />
+                      <Icon size={19} color={INACTIVE} strokeWidth={2.1} />
                     )}
                   </AnimatedView>
                 </Pressable>
@@ -396,8 +391,8 @@ const styles = StyleSheet.create({
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 14,
+    shadowRadius: 16,
+    elevation: 12,
   },
 
   dock: {
@@ -408,10 +403,10 @@ const styles = StyleSheet.create({
     paddingVertical: V_PADDING,
     backgroundColor: 'rgba(255,255,255,0.16)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 26,
-    elevation: 18,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    elevation: 20,
     overflow: 'hidden',
   },
 
@@ -446,22 +441,22 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 16,
+    height: 14,
     borderTopLeftRadius: DOCK_RADIUS,
     borderTopRightRadius: DOCK_RADIUS,
   },
 
-  streakWrap: {
+  reflectionBandWrap: {
     position: 'absolute',
-    top: -8,
-    bottom: -8,
-    left: '28%',
-    width: 78,
-    opacity: 0.85,
+    top: -6,
+    bottom: -6,
+    left: '32%',
+    width: 64,
+    opacity: 0.9,
     transform: [{ rotate: '-15deg' }],
   },
 
-  streak: {
+  reflectionBand: {
     flex: 1,
     borderRadius: 40,
   },
@@ -469,8 +464,8 @@ const styles = StyleSheet.create({
   outerStroke: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    borderWidth: 0.85,
-    borderColor: 'rgba(255,255,255,0.56)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.58)',
   },
 
   innerStroke: {
@@ -481,34 +476,34 @@ const styles = StyleSheet.create({
     bottom: 1,
     borderRadius: DOCK_RADIUS - 1,
     borderWidth: 0.6,
-    borderTopColor: 'rgba(255,255,255,0.28)',
-    borderLeftColor: 'rgba(255,255,255,0.16)',
-    borderRightColor: 'rgba(255,255,255,0.10)',
+    borderTopColor: 'rgba(255,255,255,0.30)',
+    borderLeftColor: 'rgba(255,255,255,0.18)',
+    borderRightColor: 'rgba(255,255,255,0.11)',
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
 
   lensWrap: {
     position: 'absolute',
-    top: V_PADDING,
-    borderRadius: TAB_SIZE / 2,
+    top: V_PADDING + (TAB_SIZE - LENS_SIZE) / 2,
+    borderRadius: LENS_SIZE / 2,
     overflow: 'visible',
   },
 
   lensGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_SIZE / 2 + 4,
+    borderRadius: LENS_SIZE / 2 + 4,
     backgroundColor: 'rgba(126,70,255,0.24)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.38,
-    shadowRadius: 16,
+    shadowRadius: 14,
   },
 
   lens: {
     flex: 1,
-    borderRadius: TAB_SIZE / 2,
+    borderRadius: LENS_SIZE / 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.30)',
   },
 
   lensTint: {
@@ -522,22 +517,22 @@ const styles = StyleSheet.create({
     right: 3,
     top: 2,
     height: '46%',
-    borderTopLeftRadius: TAB_SIZE / 2,
-    borderTopRightRadius: TAB_SIZE / 2,
+    borderTopLeftRadius: LENS_SIZE / 2,
+    borderTopRightRadius: LENS_SIZE / 2,
   },
 
   lensSheen: {
     position: 'absolute',
     top: 5,
     bottom: 5,
-    left: 8,
-    width: 20,
+    left: 7,
+    width: 18,
     opacity: 0.6,
   },
 
   lensSheenGradient: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 14,
   },
 
   lensInnerStroke: {
@@ -546,9 +541,9 @@ const styles = StyleSheet.create({
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: TAB_SIZE / 2,
-    borderWidth: 0.75,
-    borderTopColor: 'rgba(255,255,255,0.56)',
+    borderRadius: LENS_SIZE / 2,
+    borderWidth: 0.8,
+    borderTopColor: 'rgba(255,255,255,0.58)',
     borderLeftColor: 'rgba(255,255,255,0.26)',
     borderRightColor: 'rgba(255,255,255,0.18)',
     borderBottomColor: 'rgba(255,255,255,0.08)',
@@ -556,7 +551,7 @@ const styles = StyleSheet.create({
 
   lensOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_SIZE / 2,
+    borderRadius: LENS_SIZE / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
   },
