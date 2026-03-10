@@ -29,14 +29,14 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   settings: Ellipsis,
 };
 
-const ACTIVE = '#4F2A87';
-const INACTIVE = 'rgba(18,18,18,0.68)';
+const ACTIVE = '#4B2A86';
+const INACTIVE = 'rgba(24,24,28,0.62)';
 
-const TAB_SIZE = 52;
-const DOCK_RADIUS = 34;
-const H_PADDING = 12;
-const V_PADDING = 10;
-const GAP = 8;
+const TAB_SIZE = 56;
+const DOCK_RADIUS = 30;
+const H_PADDING = 14;
+const V_PADDING = 12;
+const GAP = 6;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AnimatedView = Animated.View;
@@ -47,7 +47,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   const dockWidth = useMemo(() => {
     return Math.min(
-      SCREEN_WIDTH - 28,
+      SCREEN_WIDTH - 24,
       tabCount * TAB_SIZE + (tabCount - 1) * GAP + H_PADDING * 2
     );
   }, [tabCount]);
@@ -58,29 +58,30 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     return (dockWidth - H_PADDING * 2) / tabCount;
   }, [dockWidth, tabCount]);
 
-  const position = useRef(new Animated.Value(state.index)).current;
-  const pillScale = useRef(new Animated.Value(1)).current;
-  const pillGlow = useRef(new Animated.Value(0)).current;
-  const sheenX = useRef(new Animated.Value(-20)).current;
+  const activeIndex = useRef(new Animated.Value(state.index)).current;
+  const lensScale = useRef(new Animated.Value(1)).current;
+  const lensGlow = useRef(new Animated.Value(0.75)).current;
   const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
+  const iconY = useRef(state.routes.map(() => new Animated.Value(0))).current;
+  const sweep = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
-    Animated.spring(position, {
+    Animated.spring(activeIndex, {
       toValue: state.index,
-      tension: 120,
-      friction: 16,
+      tension: 110,
+      friction: 15,
       useNativeDriver: true,
     }).start();
 
     Animated.parallel([
       Animated.sequence([
-        Animated.spring(pillScale, {
-          toValue: 1.035,
-          tension: 220,
-          friction: 18,
+        Animated.spring(lensScale, {
+          toValue: 1.08,
+          tension: 240,
+          friction: 16,
           useNativeDriver: true,
         }),
-        Animated.spring(pillScale, {
+        Animated.spring(lensScale, {
           toValue: 1,
           tension: 220,
           friction: 18,
@@ -88,63 +89,71 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
         }),
       ]),
       Animated.sequence([
-        Animated.timing(pillGlow, {
+        Animated.timing(lensGlow, {
           toValue: 1,
-          duration: 180,
+          duration: 170,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(pillGlow, {
-          toValue: 0.55,
+        Animated.timing(lensGlow, {
+          toValue: 0.8,
           duration: 260,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]),
       Animated.sequence([
-        Animated.timing(sheenX, {
-          toValue: 18,
-          duration: 320,
+        Animated.timing(sweep, {
+          toValue: 1,
+          duration: 520,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(sheenX, {
-          toValue: 8,
-          duration: 140,
-          easing: Easing.out(Easing.quad),
+        Animated.timing(sweep, {
+          toValue: 1,
+          duration: 1,
           useNativeDriver: true,
         }),
       ]),
-    ]).start();
-
-    state.routes.forEach((_, i) => {
-      Animated.spring(iconScales[i], {
-        toValue: i === state.index ? 1.07 : 1,
-        tension: 210,
-        friction: 18,
-        useNativeDriver: true,
-      }).start();
+    ]).start(() => {
+      sweep.setValue(-1);
     });
 
-    // reset sheen origin for next move
-    sheenX.setValue(-20);
-  }, [state.index, position, pillScale, pillGlow, sheenX, iconScales, state.routes]);
+    state.routes.forEach((_, i) => {
+      const focused = i === state.index;
 
-  const pillTranslateX = position.interpolate({
+      Animated.parallel([
+        Animated.spring(iconScales[i], {
+          toValue: focused ? 1.08 : 1,
+          tension: 220,
+          friction: 18,
+          useNativeDriver: true,
+        }),
+        Animated.spring(iconY[i], {
+          toValue: focused ? -1.5 : 0,
+          tension: 220,
+          friction: 18,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [state.index, activeIndex, lensScale, lensGlow, iconScales, iconY, sweep, state.routes]);
+
+  const lensTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, i) => i),
     outputRange: state.routes.map(
       (_, i) => H_PADDING + i * cellWidth + (cellWidth - TAB_SIZE) / 2
     ),
   });
 
-  const glowOpacity = pillGlow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.12, 0.28],
+  const lensGlowOpacity = lensGlow.interpolate({
+    inputRange: [0.75, 1],
+    outputRange: [0.18, 0.32],
   });
 
-  const glowScale = pillGlow.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 1.05],
+  const sweepTranslateX = sweep.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-dockWidth * 0.8, dockWidth * 0.8],
   });
 
   const handleTabPress = useCallback(
@@ -169,161 +178,134 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
       <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
-        {/* soft static outer glow */}
+        {/* subtle floating aura */}
         <View
           pointerEvents="none"
           style={[
-            styles.outerAura,
+            styles.baseAura,
             {
-              width: dockWidth + 16,
-              height: dockHeight + 16,
+              width: dockWidth + 18,
+              height: dockHeight + 18,
               borderRadius: DOCK_RADIUS + 12,
             },
           ]}
         />
 
-        <BlurView intensity={100} tint="light" style={styles.dock}>
-          {/* base body */}
+        <BlurView intensity={95} tint="light" style={styles.dock}>
+          {/* material base */}
           <View pointerEvents="none" style={styles.baseFill} />
 
-          {/* top white glass sheen */}
+          {/* top crystal wash */}
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.92)',
-              'rgba(255,255,255,0.40)',
-              'rgba(255,255,255,0.10)',
+              'rgba(255,255,255,0.90)',
+              'rgba(255,255,255,0.34)',
+              'rgba(255,255,255,0.08)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.18, 0.46, 1]}
-            style={styles.topSheen}
+            locations={[0, 0.2, 0.48, 1]}
+            style={styles.topWash}
           />
 
-          {/* lower density / lens weight */}
+          {/* bottom density */}
           <LinearGradient
             pointerEvents="none"
             colors={[
               'rgba(255,255,255,0.00)',
-              'rgba(210,214,225,0.00)',
-              'rgba(190,194,208,0.08)',
-              'rgba(150,154,172,0.16)',
+              'rgba(220,224,236,0.00)',
+              'rgba(180,186,205,0.08)',
+              'rgba(145,150,170,0.14)',
             ]}
-            locations={[0, 0.48, 0.76, 1]}
+            locations={[0, 0.48, 0.78, 1]}
             style={styles.bottomDensity}
           />
 
-          {/* subtle violet rim energy */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(170,110,255,0.22)',
-              'rgba(170,110,255,0.08)',
-              'rgba(170,110,255,0.00)',
-            ]}
-            locations={[0, 0.28, 1]}
-            style={styles.violetRim}
-          />
-
-          {/* border stack */}
-          <View pointerEvents="none" style={styles.outerStroke} />
-          <View pointerEvents="none" style={styles.innerStroke} />
-
-          {/* lower inner shadow */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(0,0,0,0.00)',
-              'rgba(0,0,0,0.00)',
-              'rgba(0,0,0,0.02)',
-              'rgba(0,0,0,0.05)',
-            ]}
-            locations={[0, 0.54, 0.82, 1]}
-            style={styles.innerShadow}
-          />
-
-          {/* active capsule */}
+          {/* moving reflective sweep */}
           <AnimatedView
             pointerEvents="none"
             style={[
-              styles.pillWrap,
+              styles.sweepWrap,
+              {
+                transform: [{ translateX: sweepTranslateX }, { rotate: '-12deg' }],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={[
+                'rgba(255,255,255,0)',
+                'rgba(255,255,255,0.08)',
+                'rgba(255,255,255,0.26)',
+                'rgba(255,255,255,0.08)',
+                'rgba(255,255,255,0)',
+              ]}
+              locations={[0, 0.22, 0.5, 0.78, 1]}
+              style={styles.sweepGradient}
+            />
+          </AnimatedView>
+
+          {/* glass border */}
+          <View pointerEvents="none" style={styles.outerStroke} />
+          <View pointerEvents="none" style={styles.innerStroke} />
+
+          {/* segmented dividers */}
+          <View pointerEvents="none" style={styles.dividerRow}>
+            {state.routes.map((_, i) => {
+              if (i === state.routes.length - 1) return null;
+              return <View key={`divider-${i}`} style={styles.divider} />;
+            })}
+          </View>
+
+          {/* active circular lens */}
+          <AnimatedView
+            pointerEvents="none"
+            style={[
+              styles.lensWrap,
               {
                 width: TAB_SIZE,
                 height: TAB_SIZE,
-                transform: [{ translateX: pillTranslateX }, { scale: pillScale }],
+                transform: [{ translateX: lensTranslateX }, { scale: lensScale }],
               },
             ]}
           >
             <AnimatedView
               style={[
-                styles.pillAura,
+                styles.lensGlow,
                 {
-                  opacity: glowOpacity,
-                  transform: [{ scale: glowScale }],
+                  opacity: lensGlowOpacity,
                 },
               ]}
             />
 
-            <BlurView intensity={100} tint="light" style={styles.pill}>
+            <BlurView intensity={100} tint="light" style={styles.lens}>
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,0.94)',
-                  'rgba(255,255,255,0.70)',
-                  'rgba(255,255,255,0.34)',
+                  'rgba(255,255,255,0.92)',
+                  'rgba(255,255,255,0.64)',
+                  'rgba(255,255,255,0.22)',
                 ]}
-                locations={[0, 0.44, 1]}
+                locations={[0, 0.46, 1]}
                 style={StyleSheet.absoluteFillObject}
               />
 
-              <View style={styles.pillTint} />
+              <View style={styles.lensTint} />
 
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,1.00)',
-                  'rgba(255,255,255,0.54)',
-                  'rgba(255,255,255,0.08)',
+                  'rgba(255,255,255,1)',
+                  'rgba(255,255,255,0.50)',
                   'rgba(255,255,255,0.00)',
                 ]}
-                locations={[0, 0.22, 0.54, 1]}
-                style={styles.pillTopLight}
+                locations={[0, 0.34, 1]}
+                style={styles.lensHighlight}
               />
 
-              <AnimatedView
-                style={[
-                  styles.pillSheen,
-                  {
-                    transform: [{ translateX: sheenX }, { rotate: '-14deg' }],
-                  },
-                ]}
-              >
-                <LinearGradient
-                  colors={[
-                    'rgba(255,255,255,0.00)',
-                    'rgba(255,255,255,0.72)',
-                    'rgba(255,255,255,0.00)',
-                  ]}
-                  locations={[0, 0.5, 1]}
-                  style={styles.pillSheenGradient}
-                />
-              </AnimatedView>
-
-              <View style={styles.pillEmboss} />
-
-              <LinearGradient
-                colors={[
-                  'rgba(0,0,0,0.00)',
-                  'rgba(0,0,0,0.00)',
-                  'rgba(0,0,0,0.03)',
-                  'rgba(0,0,0,0.07)',
-                ]}
-                locations={[0, 0.50, 0.78, 1]}
-                style={styles.pillBottomShade}
-              />
-
-              <View style={styles.pillInnerStroke} />
-              <View style={styles.pillOuterStroke} />
+              <View style={styles.lensInnerStroke} />
+              <View style={styles.lensOuterStroke} />
             </BlurView>
           </AnimatedView>
 
+          {/* icon row */}
           <View style={styles.row}>
             {state.routes.map((route, index) => {
               const focused = state.index === index;
@@ -334,9 +316,17 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                   key={route.key}
                   onPress={() => handleTabPress(route.key, route.name, focused)}
                   style={styles.button}
+                  testID={`tab-${route.name}`}
                 >
-                  <AnimatedView style={{ transform: [{ scale: iconScales[index] }] }}>
-                    <Icon size={19} color={focused ? ACTIVE : INACTIVE} />
+                  <AnimatedView
+                    style={{
+                      transform: [
+                        { scale: iconScales[index] },
+                        { translateY: iconY[index] },
+                      ],
+                    }}
+                  >
+                    <Icon size={20} color={focused ? ACTIVE : INACTIVE} />
                   </AnimatedView>
                 </Pressable>
               );
@@ -366,14 +356,14 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
 
-  outerAura: {
+  baseAura: {
     position: 'absolute',
-    backgroundColor: 'rgba(126,70,255,0.08)',
+    backgroundColor: 'rgba(110, 80, 255, 0.05)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.22,
+    shadowOpacity: 0.18,
     shadowRadius: 20,
-    elevation: 16,
+    elevation: 14,
   },
 
   dock: {
@@ -382,22 +372,22 @@ const styles = StyleSheet.create({
     borderRadius: DOCK_RADIUS,
     paddingHorizontal: H_PADDING,
     paddingVertical: V_PADDING,
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
+    shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.14,
     shadowRadius: 26,
-    elevation: 20,
+    elevation: 18,
     overflow: 'hidden',
   },
 
   baseFill: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.20)',
   },
 
-  topSheen: {
+  topWash: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -412,26 +402,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: '74%',
+    height: '70%',
     borderBottomLeftRadius: DOCK_RADIUS,
     borderBottomRightRadius: DOCK_RADIUS,
   },
 
-  violetRim: {
+  sweepWrap: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 18,
-    borderTopLeftRadius: DOCK_RADIUS,
-    borderTopRightRadius: DOCK_RADIUS,
+    top: -10,
+    bottom: -10,
+    width: 90,
+    opacity: 0.9,
+  },
+
+  sweepGradient: {
+    flex: 1,
+    borderRadius: 40,
   },
 
   outerStroke: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    borderWidth: 0.8,
-    borderColor: 'rgba(255,255,255,0.56)',
+    borderWidth: 0.85,
+    borderColor: 'rgba(255,255,255,0.54)',
   },
 
   innerStroke: {
@@ -442,112 +435,87 @@ const styles = StyleSheet.create({
     bottom: 1,
     borderRadius: DOCK_RADIUS - 1,
     borderWidth: 0.55,
-    borderTopColor: 'rgba(255,255,255,0.30)',
-    borderLeftColor: 'rgba(255,255,255,0.18)',
+    borderTopColor: 'rgba(255,255,255,0.26)',
+    borderLeftColor: 'rgba(255,255,255,0.14)',
     borderRightColor: 'rgba(255,255,255,0.10)',
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: 'rgba(255,255,255,0.05)',
   },
 
-  innerShadow: {
-    position: 'absolute',
-    left: 2,
-    right: 2,
-    bottom: 2,
-    height: '48%',
-    borderBottomLeftRadius: DOCK_RADIUS - 2,
-    borderBottomRightRadius: DOCK_RADIUS - 2,
+  dividerRow: {
+    ...StyleSheet.absoluteFillObject,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    paddingHorizontal: H_PADDING + TAB_SIZE / 2 - 1,
   },
 
-  pillWrap: {
+  divider: {
+    width: 1,
+    height: 24,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 1,
+  },
+
+  lensWrap: {
     position: 'absolute',
     top: V_PADDING,
-    borderRadius: 20,
+    borderRadius: TAB_SIZE / 2,
     overflow: 'visible',
   },
 
-  pillAura: {
+  lensGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 22,
-    backgroundColor: 'rgba(126,70,255,0.26)',
+    borderRadius: TAB_SIZE / 2 + 4,
+    backgroundColor: 'rgba(126,70,255,0.24)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.42,
+    shadowOpacity: 0.4,
     shadowRadius: 16,
   },
 
-  pill: {
+  lens: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: TAB_SIZE / 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'rgba(255,255,255,0.26)',
   },
 
-  pillTint: {
+  lensTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95,47,153,0.08)',
+    backgroundColor: 'rgba(95,47,153,0.07)',
   },
 
-  pillTopLight: {
+  lensHighlight: {
     position: 'absolute',
-    left: 2,
-    right: 2,
-    top: 1,
-    height: '52%',
-    borderTopLeftRadius: 19,
-    borderTopRightRadius: 19,
+    left: 3,
+    right: 3,
+    top: 2,
+    height: '45%',
+    borderTopLeftRadius: TAB_SIZE / 2,
+    borderTopRightRadius: TAB_SIZE / 2,
   },
 
-  pillSheen: {
-    position: 'absolute',
-    top: 5,
-    bottom: 5,
-    width: 22,
-    left: 8,
-    opacity: 0.62,
-  },
-
-  pillSheenGradient: {
-    flex: 1,
-    borderRadius: 18,
-  },
-
-  pillEmboss: {
-    position: 'absolute',
-    left: 2,
-    right: 2,
-    top: 1,
-    height: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.74)',
-    borderRadius: 2,
-  },
-
-  pillBottomShade: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '58%',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-
-  pillInnerStroke: {
+  lensInnerStroke: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: 19,
-    borderWidth: 0.72,
-    borderTopColor: 'rgba(255,255,255,0.58)',
-    borderLeftColor: 'rgba(255,255,255,0.30)',
+    borderRadius: TAB_SIZE / 2,
+    borderWidth: 0.7,
+    borderTopColor: 'rgba(255,255,255,0.52)',
+    borderLeftColor: 'rgba(255,255,255,0.24)',
     borderRightColor: 'rgba(255,255,255,0.18)',
-    borderBottomColor: 'rgba(255,255,255,0.10)',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
 
-  pillOuterStroke: {
+  lensOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 20,
+    borderRadius: TAB_SIZE / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
   },
@@ -562,7 +530,7 @@ const styles = StyleSheet.create({
   button: {
     width: TAB_SIZE,
     height: TAB_SIZE,
-    borderRadius: 18,
+    borderRadius: TAB_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
