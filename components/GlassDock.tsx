@@ -6,7 +6,6 @@ import {
   Animated,
   Platform,
   Dimensions,
-  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -29,7 +28,6 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   settings: Ellipsis,
 };
 
-// darker + higher contrast
 const ACTIVE = '#FFFFFF';
 const INACTIVE = 'rgba(255,255,255,0.78)';
 const ACTIVE_RING = '#7C5CFF';
@@ -64,10 +62,9 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   const activeIndex = useRef(new Animated.Value(state.index)).current;
   const lensScale = useRef(new Animated.Value(1)).current;
-  const lensGlow = useRef(new Animated.Value(0.75)).current;
+  const lensGlow = useRef(new Animated.Value(0.78)).current;
   const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
   const iconY = useRef(state.routes.map(() => new Animated.Value(0))).current;
-  const sweep = useRef(new Animated.Value(-1)).current;
 
   useEffect(() => {
     Animated.spring(activeIndex, {
@@ -80,14 +77,14 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     Animated.parallel([
       Animated.sequence([
         Animated.spring(lensScale, {
-          toValue: 1.05,
-          tension: 220,
+          toValue: 1.04,
+          tension: 210,
           friction: 16,
           useNativeDriver: true,
         }),
         Animated.spring(lensScale, {
           toValue: 1,
-          tension: 220,
+          tension: 210,
           friction: 18,
           useNativeDriver: true,
         }),
@@ -95,69 +92,47 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       Animated.sequence([
         Animated.timing(lensGlow, {
           toValue: 1,
-          duration: 160,
-          easing: Easing.out(Easing.quad),
+          duration: 150,
           useNativeDriver: true,
         }),
         Animated.timing(lensGlow, {
-          toValue: 0.82,
-          duration: 220,
-          easing: Easing.out(Easing.quad),
+          toValue: 0.84,
+          duration: 180,
           useNativeDriver: true,
         }),
       ]),
-      Animated.sequence([
-        Animated.timing(sweep, {
-          toValue: 1,
-          duration: 420,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sweep, {
-          toValue: 1,
-          duration: 1,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start(() => {
-      sweep.setValue(-1);
-    });
+    ]).start();
 
     state.routes.forEach((_, i) => {
       const focused = i === state.index;
 
       Animated.parallel([
         Animated.spring(iconScales[i], {
-          toValue: focused ? 1.06 : 1,
-          tension: 210,
+          toValue: focused ? 1.04 : 1,
+          tension: 200,
           friction: 18,
           useNativeDriver: true,
         }),
         Animated.spring(iconY[i], {
-          toValue: focused ? -1 : 0,
-          tension: 210,
+          toValue: 0,
+          tension: 200,
           friction: 18,
           useNativeDriver: true,
         }),
       ]).start();
     });
-  }, [state.index, activeIndex, lensScale, lensGlow, iconScales, iconY, sweep, state.routes]);
+  }, [state.index, activeIndex, lensScale, lensGlow, iconScales, iconY, state.routes]);
 
   const lensTranslateX = activeIndex.interpolate({
     inputRange: state.routes.map((_, i) => i),
     outputRange: state.routes.map(
-      (_, i) => H_PADDING + i * cellWidth + (cellWidth - TAB_SIZE) / 2
+      (_, i) => H_PADDING + i * cellWidth + (cellWidth - LENS_SIZE) / 2
     ),
   });
 
   const lensGlowOpacity = lensGlow.interpolate({
-    inputRange: [0.75, 1],
-    outputRange: [0.16, 0.28],
-  });
-
-  const sweepTranslateX = sweep.interpolate({
-    inputRange: [-1, 1],
-    outputRange: [-dockWidth * 0.65, dockWidth * 0.65],
+    inputRange: [0.78, 1],
+    outputRange: [0.18, 0.28],
   });
 
   const handleTabPress = useCallback(
@@ -195,7 +170,6 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
         />
 
         <BlurView intensity={75} tint="dark" style={styles.dock}>
-          {/* darker accessible base */}
           <LinearGradient
             pointerEvents="none"
             colors={[
@@ -207,7 +181,6 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             style={StyleSheet.absoluteFillObject}
           />
 
-          {/* subtle upper light */}
           <LinearGradient
             pointerEvents="none"
             colors={[
@@ -219,34 +192,9 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             style={styles.topWash}
           />
 
-          {/* subtle moving reflection */}
-          <AnimatedView
-            pointerEvents="none"
-            style={[
-              styles.sweepWrap,
-              {
-                transform: [{ translateX: sweepTranslateX }, { rotate: '-14deg' }],
-              },
-            ]}
-          >
-            <LinearGradient
-              colors={[
-                'rgba(255,255,255,0)',
-                'rgba(255,255,255,0.04)',
-                'rgba(255,255,255,0.12)',
-                'rgba(255,255,255,0.04)',
-                'rgba(255,255,255,0)',
-              ]}
-              locations={[0, 0.22, 0.5, 0.78, 1]}
-              style={styles.sweepGradient}
-            />
-          </AnimatedView>
-
-          {/* stronger edge definition */}
           <View pointerEvents="none" style={styles.outerStroke} />
           <View pointerEvents="none" style={styles.innerStroke} />
 
-          {/* active lens */}
           <AnimatedView
             pointerEvents="none"
             style={[
@@ -280,11 +228,11 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,0.28)',
-                  'rgba(255,255,255,0.08)',
+                  'rgba(255,255,255,0.22)',
+                  'rgba(255,255,255,0.06)',
                   'rgba(255,255,255,0.00)',
                 ]}
-                locations={[0, 0.32, 1]}
+                locations={[0, 0.28, 1]}
                 style={styles.lensHighlight}
               />
 
@@ -293,7 +241,6 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             </BlurView>
           </AnimatedView>
 
-          {/* icon row */}
           <View style={styles.row}>
             {state.routes.map((route, index) => {
               const focused = state.index === index;
@@ -310,6 +257,10 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                 >
                   <AnimatedView
                     style={{
+                      width: TAB_SIZE,
+                      height: TAB_SIZE,
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       transform: [
                         { scale: iconScales[index] },
                         { translateY: iconY[index] },
@@ -382,19 +333,6 @@ const styles = StyleSheet.create({
     height: '48%',
     borderTopLeftRadius: DOCK_RADIUS,
     borderTopRightRadius: DOCK_RADIUS,
-  },
-
-  sweepWrap: {
-    position: 'absolute',
-    top: -8,
-    bottom: -8,
-    width: 72,
-    opacity: 0.65,
-  },
-
-  sweepGradient: {
-    flex: 1,
-    borderRadius: 32,
   },
 
   outerStroke: {
