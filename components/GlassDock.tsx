@@ -1,12 +1,13 @@
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Pressable,
   StyleSheet,
   Animated,
-  Platform,
   Dimensions,
+  PanResponder,
   Easing,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -32,63 +33,63 @@ const ICON_MAP: Record<
   settings: Ellipsis,
 };
 
-const ACTIVE = '#4F2B8A';
-const INACTIVE = 'rgba(20,20,24,0.62)';
-
-const TAB_SIZE = 50;
-const LENS_SIZE = 44;
-const DOCK_RADIUS = 24;
-const H_PADDING = 12;
-const V_PADDING = 8;
-const GAP = 8;
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const AnimatedView = Animated.View;
 
-export default function GlassDock({ state, navigation }: BottomTabBarProps) {
+const DIAL_SIZE = Math.min(SCREEN_WIDTH * 0.88, 340);
+const RING_RADIUS = DIAL_SIZE / 2 - 42;
+const ITEM_SIZE = 54;
+const CENTER_LENS = 84;
+const GLASS_RADIUS = 36;
+const SWEEP_ANGLE = 132; // visible half-dial spread
+const STEP_DRAG = 52; // drag px per tab step
+
+const ACTIVE = '#4D2A88';
+const INACTIVE = 'rgba(24,24,28,0.62)';
+const TEXT_ACTIVE = 'rgba(30,18,54,0.95)';
+const TEXT_INACTIVE = 'rgba(50,50,58,0.55)';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export default function CameraDialDock({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const tabCount = state.routes.length;
+  const routes = state.routes;
+  const count = routes.length;
 
-  const contentWidth = useMemo(
-    () => tabCount * TAB_SIZE + (tabCount - 1) * GAP,
-    [tabCount]
-  );
+  const angleStep = count > 1 ? SWEEP_ANGLE / (count - 1) : 0;
+  const startAngle = -90 - SWEEP_ANGLE / 2;
 
-  const dockWidth = useMemo(() => {
-    return Math.min(SCREEN_WIDTH - 36, contentWidth + H_PADDING * 2);
-  }, [contentWidth]);
+  const currentIndexRef = useRef(state.index);
+  const [snappedIndex, setSnappedIndex] = useState(state.index);
 
-  const dockHeight = TAB_SIZE + V_PADDING * 2;
+  const dialRotation = useRef(new Animated.Value(state.index)).current;
+  const dragOffset = useRef(new Animated.Value(0)).current;
+  const centerScale = useRef(new Animated.Value(1)).current;
+  const centerGlow = useRef(new Animated.Value(0.72)).current;
+  const sheenSweep = useRef(new Animated.Value(-20)).current;
 
-  const leadingOffset = useMemo(() => {
-    return (dockWidth - contentWidth) / 2;
-  }, [dockWidth, contentWidth]);
-
-  const activeIndex = useRef(new Animated.Value(state.index)).current;
-  const lensScale = useRef(new Animated.Value(1)).current;
-  const lensGlow = useRef(new Animated.Value(0.65)).current;
-  const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
-  const iconY = useRef(state.routes.map(() => new Animated.Value(0))).current;
-  const iconOpacity = useRef(state.routes.map(() => new Animated.Value(0.8))).current;
-  const sheenSweep = useRef(new Animated.Value(-18)).current;
+  const itemScales = useRef(routes.map(() => new Animated.Value(1))).current;
+  const itemY = useRef(routes.map(() => new Animated.Value(0))).current;
+  const itemOpacity = useRef(routes.map(() => new Animated.Value(0.72))).current;
 
   useEffect(() => {
-    Animated.spring(activeIndex, {
-      toValue: state.index,
-      tension: 120,
-      friction: 16,
-      useNativeDriver: true,
-    }).start();
+    currentIndexRef.current = state.index;
+    setSnappedIndex(state.index);
 
     Animated.parallel([
+      Animated.spring(dialRotation, {
+        toValue: state.index,
+        tension: 120,
+        friction: 16,
+        useNativeDriver: true,
+      }),
       Animated.sequence([
-        Animated.spring(lensScale, {
-          toValue: 1.06,
+        Animated.spring(centerScale, {
+          toValue: 1.05,
           tension: 220,
-          friction: 16,
+          friction: 15,
           useNativeDriver: true,
         }),
-        Animated.spring(lensScale, {
+        Animated.spring(centerScale, {
           toValue: 1,
           tension: 220,
           friction: 18,
@@ -96,144 +97,167 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
         }),
       ]),
       Animated.sequence([
-        Animated.timing(lensGlow, {
+        Animated.timing(centerGlow, {
           toValue: 1,
           duration: 180,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
-        Animated.timing(lensGlow, {
-          toValue: 0.72,
-          duration: 240,
+        Animated.timing(centerGlow, {
+          toValue: 0.78,
+          duration: 260,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]),
-      Animated.sequence([
-        Animated.timing(sheenSweep, {
-          toValue: 12,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-        Animated.timing(sheenSweep, {
-          toValue: 6,
-          duration: 120,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start(() => {
-      sheenSweep.setValue(-18);
-    });
+    ]).start();
 
-    state.routes.forEach((_, i) => {
+    sheenSweep.setValue(-20);
+    Animated.sequence([
+      Animated.timing(sheenSweep, {
+        toValue: 16,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheenSweep, {
+        toValue: 6,
+        duration: 120,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    routes.forEach((_, i) => {
       const focused = i === state.index;
-
       Animated.parallel([
-        Animated.spring(iconScales[i], {
-          toValue: focused ? 1.06 : 1,
+        Animated.spring(itemScales[i], {
+          toValue: focused ? 1.1 : 1,
           tension: 220,
           friction: 18,
           useNativeDriver: true,
         }),
-        Animated.spring(iconY[i], {
-          toValue: focused ? -1 : 0,
+        Animated.spring(itemY[i], {
+          toValue: focused ? -2 : 0,
           tension: 220,
           friction: 18,
           useNativeDriver: true,
         }),
-        Animated.timing(iconOpacity[i], {
-          toValue: focused ? 1 : 0.76,
+        Animated.timing(itemOpacity[i], {
+          toValue: focused ? 1 : 0.72,
           duration: 180,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
       ]).start();
     });
-  }, [state.index, activeIndex, lensScale, lensGlow, iconScales, iconY, iconOpacity, sheenSweep, state.routes]);
+  }, [state.index]);
 
-  const lensTranslateX = activeIndex.interpolate({
-    inputRange: state.routes.map((_, i) => i),
-    outputRange: state.routes.map((_, i) => {
-      const itemX = leadingOffset + i * (TAB_SIZE + GAP);
-      return itemX + (TAB_SIZE - LENS_SIZE) / 2;
-    }),
-  });
+  const navigateToIndex = (nextIndex: number) => {
+    const route = routes[nextIndex];
+    if (!route || nextIndex === currentIndexRef.current) return;
 
-  const lensGlowOpacity = lensGlow.interpolate({
-    inputRange: [0.65, 1],
-    outputRange: [0.14, 0.28],
-  });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate(route.name as never);
+  };
 
-  const handleTabPress = useCallback(
-    (routeKey: string, routeName: string, isFocused: boolean) => {
-      const event = navigation.emit({
-        type: 'tabPress',
-        target: routeKey,
-        canPreventDefault: true,
-      });
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6,
+        onPanResponderGrant: () => {
+          dragOffset.stopAnimation();
+        },
+        onPanResponderMove: (_, g) => {
+          dragOffset.setValue(g.dx / STEP_DRAG);
+        },
+        onPanResponderRelease: (_, g) => {
+          dragOffset.flattenOffset?.();
 
-      if (!isFocused && !event.defaultPrevented) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        navigation.navigate(routeName as never);
-      }
-    },
-    [navigation]
+          const raw = currentIndexRef.current - g.dx / STEP_DRAG;
+          const nextIndex = Math.max(0, Math.min(count - 1, Math.round(raw)));
+
+          Animated.spring(dragOffset, {
+            toValue: 0,
+            tension: 120,
+            friction: 16,
+            useNativeDriver: true,
+          }).start();
+
+          if (nextIndex !== currentIndexRef.current) {
+            Haptics.selectionAsync();
+            navigateToIndex(nextIndex);
+          }
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(dragOffset, {
+            toValue: 0,
+            tension: 120,
+            friction: 16,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [count, navigation]
   );
+
+  const combinedIndex = Animated.add(dialRotation, dragOffset);
+
+  const glowOpacity = centerGlow.interpolate({
+    inputRange: [0.72, 1],
+    outputRange: [0.18, 0.32],
+  });
+
+  const label = routes[snappedIndex]?.name?.replace(/[()]/g, '').replace(/^\w/, (c) => c.toUpperCase()) ?? '';
+
+  const focusedIcon = ICON_MAP[routes[snappedIndex]?.name] || Ellipsis;
 
   return (
     <View
       pointerEvents="box-none"
       style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
-      <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
-        <View
-          pointerEvents="none"
-          style={[
-            styles.baseAura,
-            {
-              width: dockWidth + 14,
-              height: dockHeight + 14,
-              borderRadius: DOCK_RADIUS + 10,
-            },
-          ]}
-        />
+      <View style={styles.container} {...panResponder.panHandlers}>
+        {/* floating slab */}
+        <View style={styles.shadowBase} />
 
-        <BlurView intensity={100} tint="light" style={styles.dock}>
+        <BlurView intensity={100} tint="light" style={styles.glassSlab}>
           <View pointerEvents="none" style={styles.baseFill} />
 
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.95)',
+              'rgba(255,255,255,0.96)',
               'rgba(255,255,255,0.52)',
               'rgba(255,255,255,0.12)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.16, 0.42, 1]}
+            locations={[0, 0.18, 0.44, 1]}
             style={styles.topWash}
           />
 
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.00)',
-              'rgba(222,226,236,0.00)',
-              'rgba(188,194,208,0.09)',
-              'rgba(145,150,168,0.16)',
+              'rgba(255,255,255,0)',
+              'rgba(200,204,220,0)',
+              'rgba(165,170,190,0.08)',
+              'rgba(128,132,150,0.14)',
             ]}
-            locations={[0, 0.5, 0.78, 1]}
+            locations={[0, 0.48, 0.78, 1]}
             style={styles.bottomDensity}
           />
 
-          {/* older Mac dock-ish reflective stripe */}
-          <View pointerEvents="none" style={styles.reflectionBandWrap}>
+          <View pointerEvents="none" style={styles.outerStroke} />
+          <View pointerEvents="none" style={styles.innerStroke} />
+
+          {/* top reflective slash */}
+          <View pointerEvents="none" style={styles.reflectionWrap}>
             <LinearGradient
               colors={[
                 'rgba(255,255,255,0)',
                 'rgba(255,255,255,0.10)',
-                'rgba(255,255,255,0.30)',
+                'rgba(255,255,255,0.28)',
                 'rgba(255,255,255,0.08)',
                 'rgba(255,255,255,0)',
               ]}
@@ -242,41 +266,108 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             />
           </View>
 
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(176,125,255,0.16)',
-              'rgba(176,125,255,0.05)',
-              'rgba(176,125,255,0.00)',
-            ]}
-            locations={[0, 0.35, 1]}
-            style={styles.topRim}
-          />
+          {/* upper ring track */}
+          <View pointerEvents="none" style={styles.trackOuter} />
+          <View pointerEvents="none" style={styles.trackInner} />
+          <View pointerEvents="none" style={styles.tickRow}>
+            {routes.map((_, i) => {
+              const theta = (startAngle + i * angleStep) * (Math.PI / 180);
+              const x = DIAL_SIZE / 2 + Math.cos(theta) * (RING_RADIUS + 20);
+              const y = DIAL_SIZE / 2 + Math.sin(theta) * (RING_RADIUS + 20);
 
-          <View pointerEvents="none" style={styles.outerStroke} />
-          <View pointerEvents="none" style={styles.innerStroke} />
+              return (
+                <View
+                  key={`tick-${i}`}
+                  style={[
+                    styles.tick,
+                    {
+                      left: x - 1,
+                      top: y - 6,
+                      transform: [{ rotate: `${startAngle + i * angleStep + 90}deg` }],
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
 
+          {/* ring items */}
+          {routes.map((route, i) => {
+            const Icon = ICON_MAP[route.name] || Ellipsis;
+
+            const translateX = combinedIndex.interpolate({
+              inputRange: [i - 2, i - 1, i, i + 1, i + 2],
+              outputRange: [-999, -999, 0, 999, 999],
+              extrapolate: 'clamp',
+            });
+
+            const itemAngle = Animated.multiply(
+              Animated.add(Animated.multiply(combinedIndex, -angleStep), new Animated.Value(startAngle + i * angleStep)),
+              Math.PI / 180
+            ) as any;
+
+            // RN Animated can't directly cos/sin. Precompute by focused states? Better use static positions relative to snapped state?
+            // Use JS-calculated positions from snappedIndex for reliability.
+            const rel = i - snappedIndex;
+            const angleDeg = startAngle + (i * angleStep) - snappedIndex * angleStep;
+            const angleRad = angleDeg * (Math.PI / 180);
+
+            const x = DIAL_SIZE / 2 + Math.cos(angleRad) * RING_RADIUS - ITEM_SIZE / 2;
+            const y = DIAL_SIZE / 2 + Math.sin(angleRad) * RING_RADIUS - ITEM_SIZE / 2;
+
+            const focused = i === snappedIndex;
+
+            return (
+              <AnimatedPressable
+                key={route.key}
+                onPress={() => navigateToIndex(i)}
+                style={[
+                  styles.itemButton,
+                  {
+                    left: x,
+                    top: y,
+                    opacity: itemOpacity[i],
+                    transform: [
+                      { scale: itemScales[i] },
+                      { translateY: itemY[i] },
+                    ],
+                  },
+                ]}
+              >
+                {focused ? (
+                  <>
+                    <Icon size={20} color="rgba(255,255,255,0.86)" strokeWidth={2.2} />
+                    <View style={styles.iconOverlay}>
+                      <Icon size={20} color={ACTIVE} strokeWidth={2.2} />
+                    </View>
+                  </>
+                ) : (
+                  <Icon size={19} color={INACTIVE} strokeWidth={2.1} />
+                )}
+              </AnimatedPressable>
+            );
+          })}
+
+          {/* center circular lens */}
           <AnimatedView
             pointerEvents="none"
             style={[
-              styles.lensWrap,
+              styles.centerLensWrap,
               {
-                width: LENS_SIZE,
-                height: LENS_SIZE,
-                transform: [{ translateX: lensTranslateX }, { scale: lensScale }],
+                transform: [{ scale: centerScale }],
               },
             ]}
           >
             <AnimatedView
               style={[
-                styles.lensGlow,
+                styles.centerLensGlow,
                 {
-                  opacity: lensGlowOpacity,
+                  opacity: glowOpacity,
                 },
               ]}
             />
 
-            <BlurView intensity={100} tint="light" style={styles.lens}>
+            <BlurView intensity={100} tint="light" style={styles.centerLens}>
               <LinearGradient
                 colors={[
                   'rgba(255,255,255,0.95)',
@@ -287,22 +378,24 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                 style={StyleSheet.absoluteFillObject}
               />
 
-              <View style={styles.lensTint} />
+              <View style={styles.centerLensTint} />
 
               <LinearGradient
                 colors={[
                   'rgba(255,255,255,1)',
                   'rgba(255,255,255,0.58)',
-                  'rgba(255,255,255,0.00)',
+                  'rgba(255,255,255,0)',
                 ]}
                 locations={[0, 0.34, 1]}
-                style={styles.lensHighlight}
+                style={styles.centerLensHighlight}
               />
 
               <AnimatedView
                 style={[
-                  styles.lensSheen,
-                  { transform: [{ translateX: sheenSweep }, { rotate: '-16deg' }] },
+                  styles.centerSheen,
+                  {
+                    transform: [{ translateX: sheenSweep }, { rotate: '-16deg' }],
+                  },
                 ]}
               >
                 <LinearGradient
@@ -312,54 +405,30 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                     'rgba(255,255,255,0)',
                   ]}
                   locations={[0, 0.5, 1]}
-                  style={styles.lensSheenGradient}
+                  style={styles.centerSheenGradient}
                 />
               </AnimatedView>
 
-              <View style={styles.lensInnerStroke} />
-              <View style={styles.lensOuterStroke} />
+              <View style={styles.centerInnerStroke} />
+              <View style={styles.centerOuterStroke} />
+
+              <View style={styles.centerIconWrap}>
+                <focusedIcon size={26} color="rgba(255,255,255,0.88)" strokeWidth={2.25} />
+                <View style={styles.iconOverlay}>
+                  {React.createElement(focusedIcon, {
+                    size: 26,
+                    color: ACTIVE,
+                    strokeWidth: 2.25,
+                  })}
+                </View>
+              </View>
             </BlurView>
           </AnimatedView>
 
-          <View style={styles.row}>
-            {state.routes.map((route, index) => {
-              const focused = state.index === index;
-              const Icon = ICON_MAP[route.name] || Ellipsis;
-
-              return (
-                <Pressable
-                  key={route.key}
-                  onPress={() => handleTabPress(route.key, route.name, focused)}
-                  style={styles.button}
-                  testID={`tab-${route.name}`}
-                >
-                  <AnimatedView
-                    style={{
-                      width: TAB_SIZE,
-                      height: TAB_SIZE,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: iconOpacity[index],
-                      transform: [
-                        { scale: iconScales[index] },
-                        { translateY: iconY[index] },
-                      ],
-                    }}
-                  >
-                    {focused ? (
-                      <>
-                        <Icon size={19} color="rgba(255,255,255,0.86)" strokeWidth={2.2} />
-                        <View style={styles.iconOverlay}>
-                          <Icon size={19} color={ACTIVE} strokeWidth={2.2} />
-                        </View>
-                      </>
-                    ) : (
-                      <Icon size={19} color={INACTIVE} strokeWidth={2.1} />
-                    )}
-                  </AnimatedView>
-                </Pressable>
-              );
-            })}
+          {/* label */}
+          <View pointerEvents="none" style={styles.labelWrap}>
+            <Animated.Text style={styles.modeLabel}>{label}</Animated.Text>
+            <Animated.Text style={styles.modeHint}>Swipe to change mode</Animated.Text>
           </View>
         </BlurView>
 
@@ -379,40 +448,41 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
 
-  wrap: {
+  container: {
+    width: DIAL_SIZE,
+    height: 176,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
   },
 
-  baseAura: {
+  shadowBase: {
     position: 'absolute',
-    backgroundColor: 'rgba(118,86,255,0.05)',
-    shadowColor: '#8B5CFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 12,
+    width: DIAL_SIZE - 8,
+    height: 134,
+    bottom: 0,
+    borderRadius: GLASS_RADIUS,
+    backgroundColor: 'rgba(126,70,255,0.05)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 22 },
+    shadowOpacity: 0.2,
+    shadowRadius: 28,
+    elevation: 22,
   },
 
-  dock: {
-    width: '100%',
-    height: '100%',
-    borderRadius: DOCK_RADIUS,
-    paddingHorizontal: H_PADDING,
-    paddingVertical: V_PADDING,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 20,
+  glassSlab: {
+    position: 'absolute',
+    bottom: 0,
+    width: DIAL_SIZE,
+    height: 138,
+    borderRadius: GLASS_RADIUS,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
 
   baseFill: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: DOCK_RADIUS,
+    borderRadius: GLASS_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
 
@@ -421,9 +491,9 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: '58%',
-    borderTopLeftRadius: DOCK_RADIUS,
-    borderTopRightRadius: DOCK_RADIUS,
+    height: '56%',
+    borderTopLeftRadius: GLASS_RADIUS,
+    borderTopRightRadius: GLASS_RADIUS,
   },
 
   bottomDensity: {
@@ -432,26 +502,16 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: '72%',
-    borderBottomLeftRadius: DOCK_RADIUS,
-    borderBottomRightRadius: DOCK_RADIUS,
+    borderBottomLeftRadius: GLASS_RADIUS,
+    borderBottomRightRadius: GLASS_RADIUS,
   },
 
-  topRim: {
+  reflectionWrap: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 14,
-    borderTopLeftRadius: DOCK_RADIUS,
-    borderTopRightRadius: DOCK_RADIUS,
-  },
-
-  reflectionBandWrap: {
-    position: 'absolute',
-    top: -6,
-    bottom: -6,
-    left: '32%',
-    width: 64,
+    top: -10,
+    bottom: -10,
+    left: '34%',
+    width: 70,
     opacity: 0.9,
     transform: [{ rotate: '-15deg' }],
   },
@@ -463,9 +523,9 @@ const styles = StyleSheet.create({
 
   outerStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: DOCK_RADIUS,
+    borderRadius: GLASS_RADIUS,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.58)',
+    borderColor: 'rgba(255,255,255,0.60)',
   },
 
   innerStroke: {
@@ -474,7 +534,7 @@ const styles = StyleSheet.create({
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: DOCK_RADIUS - 1,
+    borderRadius: GLASS_RADIUS - 1,
     borderWidth: 0.6,
     borderTopColor: 'rgba(255,255,255,0.30)',
     borderLeftColor: 'rgba(255,255,255,0.18)',
@@ -482,66 +542,116 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.05)',
   },
 
-  lensWrap: {
+  trackOuter: {
     position: 'absolute',
-    top: V_PADDING + (TAB_SIZE - LENS_SIZE) / 2,
-    borderRadius: LENS_SIZE / 2,
+    width: DIAL_SIZE - 74,
+    height: DIAL_SIZE - 74,
+    borderRadius: 999,
+    top: -58,
+    left: 37,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+
+  trackInner: {
+    position: 'absolute',
+    width: DIAL_SIZE - 88,
+    height: DIAL_SIZE - 88,
+    borderRadius: 999,
+    top: -51,
+    left: 44,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+  },
+
+  tickRow: {
+    position: 'absolute',
+    width: DIAL_SIZE,
+    height: DIAL_SIZE,
+    top: -76,
+    left: 0,
+  },
+
+  tick: {
+    position: 'absolute',
+    width: 2,
+    height: 12,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
+
+  itemButton: {
+    position: 'absolute',
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    borderRadius: ITEM_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  centerLensWrap: {
+    position: 'absolute',
+    left: (DIAL_SIZE - CENTER_LENS) / 2,
+    top: -18,
+    width: CENTER_LENS,
+    height: CENTER_LENS,
+    borderRadius: CENTER_LENS / 2,
     overflow: 'visible',
   },
 
-  lensGlow: {
+  centerLensGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: LENS_SIZE / 2 + 4,
+    borderRadius: CENTER_LENS / 2 + 4,
     backgroundColor: 'rgba(126,70,255,0.24)',
     shadowColor: '#8B5CFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.38,
-    shadowRadius: 14,
+    shadowOpacity: 0.42,
+    shadowRadius: 16,
   },
 
-  lens: {
+  centerLens: {
     flex: 1,
-    borderRadius: LENS_SIZE / 2,
+    borderRadius: CENTER_LENS / 2,
     overflow: 'hidden',
     backgroundColor: 'rgba(255,255,255,0.30)',
   },
 
-  lensTint: {
+  centerLensTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95,47,153,0.07)',
+    backgroundColor: 'rgba(95,47,153,0.08)',
   },
 
-  lensHighlight: {
+  centerLensHighlight: {
     position: 'absolute',
-    left: 3,
-    right: 3,
-    top: 2,
-    height: '46%',
-    borderTopLeftRadius: LENS_SIZE / 2,
-    borderTopRightRadius: LENS_SIZE / 2,
+    left: 4,
+    right: 4,
+    top: 3,
+    height: '45%',
+    borderTopLeftRadius: CENTER_LENS / 2,
+    borderTopRightRadius: CENTER_LENS / 2,
   },
 
-  lensSheen: {
+  centerSheen: {
     position: 'absolute',
-    top: 5,
-    bottom: 5,
-    left: 7,
-    width: 18,
-    opacity: 0.6,
+    top: 7,
+    bottom: 7,
+    left: 10,
+    width: 20,
+    opacity: 0.62,
   },
 
-  lensSheenGradient: {
+  centerSheenGradient: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 18,
   },
 
-  lensInnerStroke: {
+  centerInnerStroke: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: LENS_SIZE / 2,
+    borderRadius: CENTER_LENS / 2,
     borderWidth: 0.8,
     borderTopColor: 'rgba(255,255,255,0.58)',
     borderLeftColor: 'rgba(255,255,255,0.26)',
@@ -549,26 +659,17 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.08)',
   },
 
-  lensOuterStroke: {
+  centerOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: LENS_SIZE / 2,
+    borderRadius: CENTER_LENS / 2,
     borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
   },
 
-  row: {
-    flexDirection: 'row',
+  centerIconWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: GAP,
-  },
-
-  button: {
-    width: TAB_SIZE,
-    height: TAB_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: TAB_SIZE / 2,
   },
 
   iconOverlay: {
@@ -577,9 +678,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  labelWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modeLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: TEXT_ACTIVE,
+    letterSpacing: 0.2,
+  },
+
+  modeHint: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '500',
+    color: TEXT_INACTIVE,
+  },
+
   webFallback: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: DOCK_RADIUS,
+    position: 'absolute',
+    bottom: 0,
+    width: DIAL_SIZE,
+    height: 138,
+    borderRadius: GLASS_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.46)',
     ...(Platform.OS === 'web'
       ? ({
