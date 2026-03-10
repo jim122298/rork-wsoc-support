@@ -29,14 +29,18 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   settings: Ellipsis,
 };
 
-const ACTIVE = '#4B2A86';
-const INACTIVE = 'rgba(24,24,28,0.62)';
+// darker + higher contrast
+const ACTIVE = '#FFFFFF';
+const INACTIVE = 'rgba(255,255,255,0.78)';
+const ACTIVE_RING = '#7C5CFF';
+const ACTIVE_RING_GLOW = 'rgba(124,92,255,0.34)';
 
-const TAB_SIZE = 56;
-const DOCK_RADIUS = 30;
-const H_PADDING = 14;
-const V_PADDING = 12;
-const GAP = 6;
+const TAB_SIZE = 48;
+const LENS_SIZE = 40;
+const DOCK_RADIUS = 24;
+const H_PADDING = 10;
+const V_PADDING = 8;
+const GAP = 4;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const AnimatedView = Animated.View;
@@ -47,7 +51,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   const dockWidth = useMemo(() => {
     return Math.min(
-      SCREEN_WIDTH - 24,
+      SCREEN_WIDTH - 20,
       tabCount * TAB_SIZE + (tabCount - 1) * GAP + H_PADDING * 2
     );
   }, [tabCount]);
@@ -68,7 +72,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   useEffect(() => {
     Animated.spring(activeIndex, {
       toValue: state.index,
-      tension: 110,
+      tension: 115,
       friction: 15,
       useNativeDriver: true,
     }).start();
@@ -76,8 +80,8 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
     Animated.parallel([
       Animated.sequence([
         Animated.spring(lensScale, {
-          toValue: 1.08,
-          tension: 240,
+          toValue: 1.05,
+          tension: 220,
           friction: 16,
           useNativeDriver: true,
         }),
@@ -91,13 +95,13 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       Animated.sequence([
         Animated.timing(lensGlow, {
           toValue: 1,
-          duration: 170,
+          duration: 160,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
         Animated.timing(lensGlow, {
-          toValue: 0.8,
-          duration: 260,
+          toValue: 0.82,
+          duration: 220,
           easing: Easing.out(Easing.quad),
           useNativeDriver: true,
         }),
@@ -105,7 +109,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
       Animated.sequence([
         Animated.timing(sweep, {
           toValue: 1,
-          duration: 520,
+          duration: 420,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -124,14 +128,14 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
       Animated.parallel([
         Animated.spring(iconScales[i], {
-          toValue: focused ? 1.08 : 1,
-          tension: 220,
+          toValue: focused ? 1.06 : 1,
+          tension: 210,
           friction: 18,
           useNativeDriver: true,
         }),
         Animated.spring(iconY[i], {
-          toValue: focused ? -1.5 : 0,
-          tension: 220,
+          toValue: focused ? -1 : 0,
+          tension: 210,
           friction: 18,
           useNativeDriver: true,
         }),
@@ -148,12 +152,12 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   const lensGlowOpacity = lensGlow.interpolate({
     inputRange: [0.75, 1],
-    outputRange: [0.18, 0.32],
+    outputRange: [0.16, 0.28],
   });
 
   const sweepTranslateX = sweep.interpolate({
     inputRange: [-1, 1],
-    outputRange: [-dockWidth * 0.8, dockWidth * 0.8],
+    outputRange: [-dockWidth * 0.65, dockWidth * 0.65],
   });
 
   const handleTabPress = useCallback(
@@ -175,68 +179,62 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   return (
     <View
       pointerEvents="box-none"
-      style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
+      style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 8) }]}
     >
       <View style={[styles.wrap, { width: dockWidth, height: dockHeight }]}>
-        {/* subtle floating aura */}
         <View
           pointerEvents="none"
           style={[
             styles.baseAura,
             {
-              width: dockWidth + 18,
-              height: dockHeight + 18,
-              borderRadius: DOCK_RADIUS + 12,
+              width: dockWidth + 10,
+              height: dockHeight + 10,
+              borderRadius: DOCK_RADIUS + 8,
             },
           ]}
         />
 
-        <BlurView intensity={95} tint="light" style={styles.dock}>
-          {/* material base */}
-          <View pointerEvents="none" style={styles.baseFill} />
-
-          {/* top crystal wash */}
+        <BlurView intensity={75} tint="dark" style={styles.dock}>
+          {/* darker accessible base */}
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.90)',
-              'rgba(255,255,255,0.34)',
-              'rgba(255,255,255,0.08)',
+              'rgba(50,54,64,0.94)',
+              'rgba(35,39,48,0.96)',
+              'rgba(22,25,32,0.98)',
+            ]}
+            locations={[0, 0.45, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
+
+          {/* subtle upper light */}
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(255,255,255,0.18)',
+              'rgba(255,255,255,0.06)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.2, 0.48, 1]}
+            locations={[0, 0.28, 1]}
             style={styles.topWash}
           />
 
-          {/* bottom density */}
-          <LinearGradient
-            pointerEvents="none"
-            colors={[
-              'rgba(255,255,255,0.00)',
-              'rgba(220,224,236,0.00)',
-              'rgba(180,186,205,0.08)',
-              'rgba(145,150,170,0.14)',
-            ]}
-            locations={[0, 0.48, 0.78, 1]}
-            style={styles.bottomDensity}
-          />
-
-          {/* moving reflective sweep */}
+          {/* subtle moving reflection */}
           <AnimatedView
             pointerEvents="none"
             style={[
               styles.sweepWrap,
               {
-                transform: [{ translateX: sweepTranslateX }, { rotate: '-12deg' }],
+                transform: [{ translateX: sweepTranslateX }, { rotate: '-14deg' }],
               },
             ]}
           >
             <LinearGradient
               colors={[
                 'rgba(255,255,255,0)',
-                'rgba(255,255,255,0.08)',
-                'rgba(255,255,255,0.26)',
-                'rgba(255,255,255,0.08)',
+                'rgba(255,255,255,0.04)',
+                'rgba(255,255,255,0.12)',
+                'rgba(255,255,255,0.04)',
                 'rgba(255,255,255,0)',
               ]}
               locations={[0, 0.22, 0.5, 0.78, 1]}
@@ -244,26 +242,18 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
             />
           </AnimatedView>
 
-          {/* glass border */}
+          {/* stronger edge definition */}
           <View pointerEvents="none" style={styles.outerStroke} />
           <View pointerEvents="none" style={styles.innerStroke} />
 
-          {/* segmented dividers */}
-          <View pointerEvents="none" style={styles.dividerRow}>
-            {state.routes.map((_, i) => {
-              if (i === state.routes.length - 1) return null;
-              return <View key={`divider-${i}`} style={styles.divider} />;
-            })}
-          </View>
-
-          {/* active circular lens */}
+          {/* active lens */}
           <AnimatedView
             pointerEvents="none"
             style={[
               styles.lensWrap,
               {
-                width: TAB_SIZE,
-                height: TAB_SIZE,
+                width: LENS_SIZE,
+                height: LENS_SIZE,
                 transform: [{ translateX: lensTranslateX }, { scale: lensScale }],
               },
             ]}
@@ -277,26 +267,24 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
               ]}
             />
 
-            <BlurView intensity={100} tint="light" style={styles.lens}>
+            <BlurView intensity={65} tint="dark" style={styles.lens}>
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,0.92)',
-                  'rgba(255,255,255,0.64)',
-                  'rgba(255,255,255,0.22)',
+                  'rgba(124,92,255,0.92)',
+                  'rgba(106,78,238,0.96)',
+                  'rgba(84,60,190,0.98)',
                 ]}
-                locations={[0, 0.46, 1]}
+                locations={[0, 0.5, 1]}
                 style={StyleSheet.absoluteFillObject}
               />
 
-              <View style={styles.lensTint} />
-
               <LinearGradient
                 colors={[
-                  'rgba(255,255,255,1)',
-                  'rgba(255,255,255,0.50)',
+                  'rgba(255,255,255,0.28)',
+                  'rgba(255,255,255,0.08)',
                   'rgba(255,255,255,0.00)',
                 ]}
-                locations={[0, 0.34, 1]}
+                locations={[0, 0.32, 1]}
                 style={styles.lensHighlight}
               />
 
@@ -316,6 +304,8 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                   key={route.key}
                   onPress={() => handleTabPress(route.key, route.name, focused)}
                   style={styles.button}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: focused }}
                   testID={`tab-${route.name}`}
                 >
                   <AnimatedView
@@ -326,7 +316,10 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
                       ],
                     }}
                   >
-                    <Icon size={20} color={focused ? ACTIVE : INACTIVE} />
+                    <Icon
+                      size={18}
+                      color={focused ? ACTIVE : INACTIVE}
+                    />
                   </AnimatedView>
                 </Pressable>
               );
@@ -358,12 +351,12 @@ const styles = StyleSheet.create({
 
   baseAura: {
     position: 'absolute',
-    backgroundColor: 'rgba(110, 80, 255, 0.05)',
-    shadowColor: '#8B5CFF',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 14,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 18,
   },
 
   dock: {
@@ -372,19 +365,13 @@ const styles = StyleSheet.create({
     borderRadius: DOCK_RADIUS,
     paddingHorizontal: H_PADDING,
     paddingVertical: V_PADDING,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(28,30,36,0.94)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.14,
-    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
     elevation: 18,
     overflow: 'hidden',
-  },
-
-  baseFill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: DOCK_RADIUS,
-    backgroundColor: 'rgba(255,255,255,0.20)',
   },
 
   topWash: {
@@ -392,39 +379,29 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: '56%',
+    height: '48%',
     borderTopLeftRadius: DOCK_RADIUS,
     borderTopRightRadius: DOCK_RADIUS,
   },
 
-  bottomDensity: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: '70%',
-    borderBottomLeftRadius: DOCK_RADIUS,
-    borderBottomRightRadius: DOCK_RADIUS,
-  },
-
   sweepWrap: {
     position: 'absolute',
-    top: -10,
-    bottom: -10,
-    width: 90,
-    opacity: 0.9,
+    top: -8,
+    bottom: -8,
+    width: 72,
+    opacity: 0.65,
   },
 
   sweepGradient: {
     flex: 1,
-    borderRadius: 40,
+    borderRadius: 32,
   },
 
   outerStroke: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    borderWidth: 0.85,
-    borderColor: 'rgba(255,255,255,0.54)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
 
   innerStroke: {
@@ -434,69 +411,45 @@ const styles = StyleSheet.create({
     top: 1,
     bottom: 1,
     borderRadius: DOCK_RADIUS - 1,
-    borderWidth: 0.55,
-    borderTopColor: 'rgba(255,255,255,0.26)',
-    borderLeftColor: 'rgba(255,255,255,0.14)',
-    borderRightColor: 'rgba(255,255,255,0.10)',
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-  },
-
-  dividerRow: {
-    ...StyleSheet.absoluteFillObject,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    paddingHorizontal: H_PADDING + TAB_SIZE / 2 - 1,
-  },
-
-  divider: {
-    width: 1,
-    height: 24,
-    borderRadius: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    shadowColor: '#fff',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 1,
+    borderWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderLeftColor: 'rgba(255,255,255,0.05)',
+    borderRightColor: 'rgba(255,255,255,0.04)',
+    borderBottomColor: 'rgba(0,0,0,0.18)',
   },
 
   lensWrap: {
     position: 'absolute',
-    top: V_PADDING,
-    borderRadius: TAB_SIZE / 2,
+    top: V_PADDING + (TAB_SIZE - LENS_SIZE) / 2,
+    borderRadius: LENS_SIZE / 2,
     overflow: 'visible',
   },
 
   lensGlow: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_SIZE / 2 + 4,
-    backgroundColor: 'rgba(126,70,255,0.24)',
-    shadowColor: '#8B5CFF',
+    borderRadius: LENS_SIZE / 2 + 4,
+    backgroundColor: ACTIVE_RING_GLOW,
+    shadowColor: ACTIVE_RING,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
   },
 
   lens: {
     flex: 1,
-    borderRadius: TAB_SIZE / 2,
+    borderRadius: LENS_SIZE / 2,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.26)',
-  },
-
-  lensTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95,47,153,0.07)',
+    backgroundColor: ACTIVE_RING,
   },
 
   lensHighlight: {
     position: 'absolute',
-    left: 3,
-    right: 3,
+    left: 2,
+    right: 2,
     top: 2,
-    height: '45%',
-    borderTopLeftRadius: TAB_SIZE / 2,
-    borderTopRightRadius: TAB_SIZE / 2,
+    height: '42%',
+    borderTopLeftRadius: LENS_SIZE / 2,
+    borderTopRightRadius: LENS_SIZE / 2,
   },
 
   lensInnerStroke: {
@@ -505,19 +458,19 @@ const styles = StyleSheet.create({
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: TAB_SIZE / 2,
+    borderRadius: LENS_SIZE / 2,
     borderWidth: 0.7,
-    borderTopColor: 'rgba(255,255,255,0.52)',
-    borderLeftColor: 'rgba(255,255,255,0.24)',
-    borderRightColor: 'rgba(255,255,255,0.18)',
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: 'rgba(255,255,255,0.24)',
+    borderLeftColor: 'rgba(255,255,255,0.12)',
+    borderRightColor: 'rgba(255,255,255,0.10)',
+    borderBottomColor: 'rgba(0,0,0,0.14)',
   },
 
   lensOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: TAB_SIZE / 2,
+    borderRadius: LENS_SIZE / 2,
     borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.05)',
+    borderColor: 'rgba(255,255,255,0.06)',
   },
 
   row: {
@@ -538,11 +491,11 @@ const styles = StyleSheet.create({
   webFallback: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    backgroundColor: 'rgba(255,255,255,0.44)',
+    backgroundColor: 'rgba(28,30,36,0.94)',
     ...(Platform.OS === 'web'
       ? ({
-          backdropFilter: 'blur(30px) saturate(185%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(185%)',
+          backdropFilter: 'blur(20px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(140%)',
         } as any)
       : {}),
   },
