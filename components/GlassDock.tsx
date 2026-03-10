@@ -6,6 +6,7 @@ import {
   Animated,
   Platform,
   Dimensions,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -28,14 +29,13 @@ const ICON_MAP: Record<string, React.ComponentType<{ size: number; color: string
   settings: Ellipsis,
 };
 
-const ACCENT = '#5F2F99';
-const ACTIVE_ICON = '#4C2481';
-const INACTIVE = 'rgba(25,25,25,0.72)';
+const ACTIVE = '#4C2787';
+const INACTIVE = 'rgba(10,10,10,0.65)';
 
-const TAB_SIZE = 50;
-const DOCK_RADIUS = 30;
-const DOCK_HORIZONTAL_PADDING = 12;
-const DOCK_VERTICAL_PADDING = 10;
+const TAB_SIZE = 52;
+const DOCK_RADIUS = 34;
+const H_PADDING = 12;
+const V_PADDING = 10;
 const GAP = 8;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -47,71 +47,64 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
   const dockWidth = useMemo(() => {
     return Math.min(
       SCREEN_WIDTH - 28,
-      tabCount * TAB_SIZE + (tabCount - 1) * GAP + DOCK_HORIZONTAL_PADDING * 2
+      tabCount * TAB_SIZE + (tabCount - 1) * GAP + H_PADDING * 2
     );
   }, [tabCount]);
 
   const cellWidth = useMemo(() => {
-    return (dockWidth - DOCK_HORIZONTAL_PADDING * 2) / tabCount;
+    return (dockWidth - H_PADDING * 2) / tabCount;
   }, [dockWidth, tabCount]);
 
-  const pillAnim = useRef(new Animated.Value(state.index)).current;
+  const position = useRef(new Animated.Value(state.index)).current;
   const pillScale = useRef(new Animated.Value(1)).current;
-  const pillGlow = useRef(new Animated.Value(0.92)).current;
+  const glossShift = useRef(new Animated.Value(0)).current;
   const iconScales = useRef(state.routes.map(() => new Animated.Value(1))).current;
 
   useEffect(() => {
-    Animated.spring(pillAnim, {
+    Animated.spring(position, {
       toValue: state.index,
-      tension: 110,
+      tension: 125,
       friction: 16,
       useNativeDriver: true,
     }).start();
 
-    Animated.parallel([
-      Animated.sequence([
-        Animated.spring(pillScale, {
-          toValue: 1.04,
-          tension: 220,
-          friction: 18,
-          useNativeDriver: true,
-        }),
-        Animated.spring(pillScale, {
-          toValue: 1,
-          tension: 220,
-          friction: 18,
-          useNativeDriver: true,
-        }),
-      ]),
-      Animated.sequence([
-        Animated.timing(pillGlow, {
-          toValue: 1,
-          duration: 160,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pillGlow, {
-          toValue: 0.96,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-      ]),
+    Animated.sequence([
+      Animated.spring(pillScale, {
+        toValue: 1.045,
+        tension: 220,
+        friction: 16,
+        useNativeDriver: true,
+      }),
+      Animated.spring(pillScale, {
+        toValue: 1,
+        tension: 220,
+        friction: 18,
+        useNativeDriver: true,
+      }),
     ]).start();
 
+    glossShift.setValue(-18);
+    Animated.timing(glossShift, {
+      toValue: 18,
+      duration: 380,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+
     state.routes.forEach((_, i) => {
-      const focused = i === state.index;
       Animated.spring(iconScales[i], {
-        toValue: focused ? 1.08 : 1,
+        toValue: i === state.index ? 1.08 : 1,
         tension: 220,
         friction: 18,
         useNativeDriver: true,
       }).start();
     });
-  }, [state.index, iconScales, pillAnim, pillGlow, pillScale, state.routes]);
+  }, [state.index]);
 
-  const pillTranslateX = pillAnim.interpolate({
+  const pillTranslateX = position.interpolate({
     inputRange: state.routes.map((_, i) => i),
     outputRange: state.routes.map(
-      (_, i) => DOCK_HORIZONTAL_PADDING + i * cellWidth + (cellWidth - TAB_SIZE) / 2
+      (_, i) => H_PADDING + i * cellWidth + (cellWidth - TAB_SIZE) / 2
     ),
   });
 
@@ -133,119 +126,152 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View
-      style={[styles.dockOuter, { paddingBottom: Math.max(insets.bottom, 10) }]}
       pointerEvents="box-none"
+      style={[styles.outer, { paddingBottom: Math.max(insets.bottom, 10) }]}
     >
-      <View style={[styles.dockWrap, { width: dockWidth }]}>
-        <BlurView intensity={85} tint="light" style={styles.dockGlass}>
-          {/* Base bright material */}
-          <View pointerEvents="none" style={styles.baseTint} />
+      <View style={[styles.wrap, { width: dockWidth }]}>
+        <BlurView intensity={95} tint="light" style={styles.dock}>
+          {/* Base material */}
+          <View pointerEvents="none" style={styles.baseFill} />
 
-          {/* Apple-style top sheen */}
+          {/* Top reflected light */}
           <LinearGradient
             pointerEvents="none"
             colors={[
-              'rgba(255,255,255,0.65)',
-              'rgba(255,255,255,0.20)',
-              'rgba(255,255,255,0.04)',
+              'rgba(255,255,255,0.95)',
+              'rgba(255,255,255,0.45)',
+              'rgba(255,255,255,0.10)',
               'rgba(255,255,255,0.00)',
             ]}
-            locations={[0, 0.22, 0.5, 1]}
-            style={styles.topSheen}
+            locations={[0, 0.18, 0.42, 1]}
+            style={styles.topReflection}
           />
 
-          {/* Bottom depth */}
+          {/* Bottom density / lens edge */}
           <LinearGradient
             pointerEvents="none"
             colors={[
               'rgba(255,255,255,0.00)',
-              'rgba(255,255,255,0.00)',
-              'rgba(210,210,220,0.10)',
-              'rgba(180,180,195,0.16)',
+              'rgba(210,210,220,0.00)',
+              'rgba(185,188,205,0.10)',
+              'rgba(135,138,155,0.18)',
             ]}
-            locations={[0, 0.45, 0.78, 1]}
-            style={styles.bottomDepth}
+            locations={[0, 0.45, 0.75, 1]}
+            style={styles.bottomLens}
           />
 
-          {/* Outer hairline */}
-          <View pointerEvents="none" style={styles.hairline} />
+          {/* Outer edge */}
+          <View pointerEvents="none" style={styles.outerStroke} />
 
-          {/* Inner soft border */}
-          <View pointerEvents="none" style={styles.innerStroke} />
+          {/* Inner embossed ring */}
+          <View pointerEvents="none" style={styles.innerEmboss} />
 
-          {/* Active liquid capsule */}
+          {/* Bottom inner shadow */}
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(0,0,0,0.00)',
+              'rgba(0,0,0,0.00)',
+              'rgba(0,0,0,0.025)',
+              'rgba(0,0,0,0.055)',
+            ]}
+            locations={[0, 0.52, 0.8, 1]}
+            style={styles.innerShadow}
+          />
+
+          {/* Selection capsule */}
           <Animated.View
             pointerEvents="none"
             style={[
-              styles.selectionBlob,
+              styles.pill,
               {
                 width: TAB_SIZE,
                 height: TAB_SIZE,
-                transform: [
-                  { translateX: pillTranslateX },
-                  { scale: pillScale },
-                ],
+                transform: [{ translateX: pillTranslateX }, { scale: pillScale }],
               },
             ]}
           >
-            <Animated.View
-              style={[
-                styles.selectionShadowWrap,
-                {
-                  transform: [{ scale: pillGlow }],
-                },
-              ]}
-            >
-              <BlurView intensity={100} tint="light" style={styles.selectionBlur}>
-                {/* brighter Apple-esque glass body */}
+            {/* Soft halo */}
+            <View style={styles.pillHalo} />
+
+            <BlurView intensity={100} tint="light" style={styles.pillBlur}>
+              {/* glass body */}
+              <LinearGradient
+                colors={[
+                  'rgba(255,255,255,0.96)',
+                  'rgba(255,255,255,0.72)',
+                  'rgba(255,255,255,0.38)',
+                ]}
+                locations={[0, 0.46, 1]}
+                style={StyleSheet.absoluteFillObject}
+              />
+
+              {/* chroma tint */}
+              <View style={styles.pillTint} />
+
+              {/* bright top glint */}
+              <LinearGradient
+                colors={[
+                  'rgba(255,255,255,1.0)',
+                  'rgba(255,255,255,0.56)',
+                  'rgba(255,255,255,0.06)',
+                  'rgba(255,255,255,0.00)',
+                ]}
+                locations={[0, 0.22, 0.55, 1]}
+                style={styles.pillTopGlint}
+              />
+
+              {/* moving specular streak */}
+              <Animated.View
+                style={[
+                  styles.specularWrap,
+                  { transform: [{ translateX: glossShift }, { rotate: '-14deg' }] },
+                ]}
+              >
                 <LinearGradient
                   colors={[
-                    'rgba(255,255,255,0.74)',
-                    'rgba(255,255,255,0.50)',
-                    'rgba(255,255,255,0.26)',
-                  ]}
-                  locations={[0, 0.45, 1]}
-                  style={StyleSheet.absoluteFillObject}
-                />
-
-                {/* soft violet material tint */}
-                <View style={styles.selectionTint} />
-
-                {/* top gleam */}
-                <LinearGradient
-                  colors={[
-                    'rgba(255,255,255,0.82)',
-                    'rgba(255,255,255,0.28)',
+                    'rgba(255,255,255,0.00)',
+                    'rgba(255,255,255,0.70)',
                     'rgba(255,255,255,0.00)',
                   ]}
-                  locations={[0, 0.36, 1]}
-                  style={styles.selectionSheen}
+                  locations={[0, 0.5, 1]}
+                  style={styles.specular}
                 />
+              </Animated.View>
 
-                {/* subtle inner edge */}
-                <View style={styles.selectionInnerStroke} />
+              {/* top emboss */}
+              <View style={styles.pillEmbossTop} />
 
-                {/* subtle outer edge */}
-                <View style={styles.selectionOuterStroke} />
-              </BlurView>
-            </Animated.View>
+              {/* bottom edge darkening */}
+              <LinearGradient
+                colors={[
+                  'rgba(0,0,0,0.00)',
+                  'rgba(0,0,0,0.00)',
+                  'rgba(0,0,0,0.035)',
+                  'rgba(0,0,0,0.08)',
+                ]}
+                locations={[0, 0.5, 0.78, 1]}
+                style={styles.pillBottomShade}
+              />
+
+              <View style={styles.pillInnerStroke} />
+              <View style={styles.pillOuterStroke} />
+            </BlurView>
           </Animated.View>
 
-          <View style={styles.tabRow}>
+          <View style={styles.row}>
             {state.routes.map((route, index) => {
-              const isFocused = state.index === index;
-              const IconComp = ICON_MAP[route.name] || Ellipsis;
-              const color = isFocused ? ACTIVE_ICON : INACTIVE;
+              const focused = state.index === index;
+              const Icon = ICON_MAP[route.name] || Ellipsis;
 
               return (
                 <Pressable
                   key={route.key}
-                  onPress={() => handleTabPress(route.key, route.name, isFocused)}
-                  style={styles.tabButton}
-                  testID={`tab-${route.name}`}
+                  onPress={() => handleTabPress(route.key, route.name, focused)}
+                  style={styles.button}
                 >
                   <Animated.View style={{ transform: [{ scale: iconScales[index] }] }}>
-                    <IconComp size={19} color={color} />
+                    <Icon size={19} color={focused ? ACTIVE : INACTIVE} />
                   </Animated.View>
                 </Pressable>
               );
@@ -260,7 +286,7 @@ export default function GlassDock({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  dockOuter: {
+  outer: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -269,40 +295,40 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
 
-  dockWrap: {
+  wrap: {
     borderRadius: DOCK_RADIUS,
     overflow: 'hidden',
   },
 
-  dockGlass: {
+  dock: {
     borderRadius: DOCK_RADIUS,
-    paddingVertical: DOCK_VERTICAL_PADDING,
-    paddingHorizontal: DOCK_HORIZONTAL_PADDING,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: H_PADDING,
+    paddingVertical: V_PADDING,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 22,
   },
 
-  baseTint: {
+  baseFill: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
 
-  topSheen: {
+  topReflection: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: '62%',
+    height: '56%',
     borderTopLeftRadius: DOCK_RADIUS,
     borderTopRightRadius: DOCK_RADIUS,
   },
 
-  bottomDepth: {
+  bottomLens: {
     position: 'absolute',
     left: 0,
     right: 0,
@@ -312,88 +338,139 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: DOCK_RADIUS,
   },
 
-  hairline: {
+  outerStroke: {
     ...StyleSheet.absoluteFillObject,
     borderRadius: DOCK_RADIUS,
-    borderWidth: 0.7,
-    borderColor: 'rgba(255,255,255,0.52)',
+    borderWidth: 0.85,
+    borderColor: 'rgba(255,255,255,0.62)',
   },
 
-  innerStroke: {
+  innerEmboss: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
     bottom: 1,
     borderRadius: DOCK_RADIUS - 1,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 0.7,
+    borderTopColor: 'rgba(255,255,255,0.42)',
+    borderLeftColor: 'rgba(255,255,255,0.26)',
+    borderRightColor: 'rgba(255,255,255,0.12)',
+    borderBottomColor: 'rgba(255,255,255,0.06)',
   },
 
-  selectionBlob: {
+  innerShadow: {
     position: 'absolute',
-    top: DOCK_VERTICAL_PADDING,
-    borderRadius: 19,
+    left: 2,
+    right: 2,
+    bottom: 2,
+    height: '48%',
+    borderBottomLeftRadius: DOCK_RADIUS - 2,
+    borderBottomRightRadius: DOCK_RADIUS - 2,
+  },
+
+  pill: {
+    position: 'absolute',
+    top: V_PADDING,
+    borderRadius: 20,
     overflow: 'visible',
   },
 
-  selectionShadowWrap: {
-    flex: 1,
-    borderRadius: 19,
+  pillHalo: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.14)',
     shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
   },
 
-  selectionBlur: {
+  pillBlur: {
     flex: 1,
-    borderRadius: 19,
+    borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
   },
 
-  selectionTint: {
+  pillTint: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95,47,153,0.08)',
+    backgroundColor: 'rgba(95,47,153,0.09)',
   },
 
-  selectionSheen: {
+  pillTopGlint: {
     position: 'absolute',
     left: 2,
     right: 2,
     top: 1,
     height: '52%',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    borderTopLeftRadius: 19,
+    borderTopRightRadius: 19,
   },
 
-  selectionInnerStroke: {
+  specularWrap: {
+    position: 'absolute',
+    top: 5,
+    bottom: 5,
+    width: 22,
+    left: 10,
+    opacity: 0.65,
+  },
+
+  specular: {
+    flex: 1,
+    borderRadius: 18,
+  },
+
+  pillEmbossTop: {
+    position: 'absolute',
+    left: 2,
+    right: 2,
+    top: 1,
+    height: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderRadius: 2,
+  },
+
+  pillBottomShade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '58%',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+
+  pillInnerStroke: {
     position: 'absolute',
     left: 1,
     right: 1,
     top: 1,
     bottom: 1,
-    borderRadius: 18,
-    borderWidth: 0.6,
-    borderColor: 'rgba(255,255,255,0.42)',
+    borderRadius: 19,
+    borderWidth: 0.75,
+    borderTopColor: 'rgba(255,255,255,0.66)',
+    borderLeftColor: 'rgba(255,255,255,0.34)',
+    borderRightColor: 'rgba(255,255,255,0.20)',
+    borderBottomColor: 'rgba(255,255,255,0.10)',
   },
 
-  selectionOuterStroke: {
+  pillOuterStroke: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: 19,
+    borderRadius: 20,
     borderWidth: 0.5,
     borderColor: 'rgba(0,0,0,0.05)',
   },
 
-  tabRow: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: GAP,
   },
 
-  tabButton: {
+  button: {
     width: TAB_SIZE,
     height: TAB_SIZE,
     borderRadius: 18,
@@ -403,12 +480,12 @@ const styles = StyleSheet.create({
 
   webFallback: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.48)',
     borderRadius: DOCK_RADIUS,
+    backgroundColor: 'rgba(255,255,255,0.44)',
     ...(Platform.OS === 'web'
       ? ({
-          backdropFilter: 'blur(30px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+          backdropFilter: 'blur(30px) saturate(190%)',
+          WebkitBackdropFilter: 'blur(30px) saturate(190%)',
         } as any)
       : {}),
   },
