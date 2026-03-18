@@ -152,12 +152,12 @@ export default function HomeScreen() {
               <Text style={styles.heroBadgeText}>WSOC Support</Text>
             </View>
 
-            <View style={styles.logoWrap}>
+            <View style={styles.logoPlainWrap}>
               <Image
                 source={{
                   uri: 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExNzFzbmhqaXAxYnp6aTJuMmZpMXhoenBwZHN5MnA4NjNwOWs5czJ5MCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/bCO0RUAdNYo4IULnFN/giphy.gif',
                 }}
-                style={styles.logo}
+                style={styles.logoPlain}
                 resizeMode="contain"
                 testID="header-logo"
               />
@@ -402,22 +402,17 @@ const styles = StyleSheet.create({
     maxWidth: '92%',
   },
 
-  logoWrap: {
+  logoPlainWrap: {
     width: 60,
     height: 60,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    marginLeft: 12,
   },
 
-  logo: {
-    width: 54,
-    height: 54,
-    borderRadius: 16,
+  logoPlain: {
+    width: 58,
+    height: 58,
   },
 
   searchContainer: {
