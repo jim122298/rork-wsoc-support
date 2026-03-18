@@ -20,7 +20,6 @@ import {
   ClipboardList,
   Download,
   Sparkles,
-  Heart,
 } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { Colors } from '@/constants/colors';
@@ -87,6 +86,10 @@ export default function SettingsScreen() {
     await WebBrowser.openBrowserAsync(BASE_URL + '/community/posts');
   }, []);
 
+  const openEmail = useCallback(() => {
+    Linking.openURL('mailto:support@wsoc.me');
+  }, []);
+
   const openSubmitTicket = useCallback(async () => {
     await WebBrowser.openBrowserAsync(BASE_URL + '/requests/new');
   }, []);
@@ -96,7 +99,7 @@ export default function SettingsScreen() {
   }, []);
 
   const openAppStore = useCallback((url: string) => {
-    void Linking.openURL(url);
+    Linking.openURL(url);
   }, []);
 
   return (
@@ -200,21 +203,6 @@ export default function SettingsScreen() {
             color={Colors.textSecondary}
           />
         </View>
-
-        <Text style={styles.sectionLabel}>AFFILIATE SUPPORT</Text>
-        <Pressable
-          style={({ pressed }) => [styles.affiliateCard, pressed && styles.rowPressed]}
-          onPress={() => WebBrowser.openBrowserAsync('https://support.wsoc.me')}
-        >
-          <View style={[styles.rowIcon, { backgroundColor: Colors.dangerLight }]}>
-            <Heart size={20} color={Colors.danger} />
-          </View>
-          <View style={styles.rowContent}>
-            <Text style={styles.rowTitle}>Support Our Mission</Text>
-            <Text style={styles.rowSubtitle}>Help us keep resources free and accessible</Text>
-          </View>
-          <ChevronRight size={18} color={Colors.textTertiary} />
-        </Pressable>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Woods System of Care</Text>
@@ -358,21 +346,5 @@ const styles = StyleSheet.create({
   footerVersion: {
     fontSize: 12,
     color: Colors.textTertiary,
-  },
-  affiliateCard: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    padding: 14,
-    gap: 12,
-    backgroundColor: Colors.glassCard,
-    borderRadius: 18,
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    overflow: 'hidden' as const,
-    shadowColor: Colors.glassCardShadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 3,
   },
 });

@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.glassCard,
     borderRadius: 16,
     padding: 14,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.text,
     borderWidth: 0.5,
     borderColor: Colors.glassCardBorder,
