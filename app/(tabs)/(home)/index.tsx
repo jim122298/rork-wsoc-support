@@ -21,15 +21,16 @@ import {
   HelpCircle,
   LogIn,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '@/constants/colors';
 import { BASE_URL } from '@/constants/articles';
 import { useZendesk, useZendeskSearch } from '@/contexts/ZendeskContext';
 import SearchBar from '@/components/SearchBar';
 import ArticleCard from '@/components/ArticleCard';
-
 
 const SUPPORT_SIGN_IN_URL =
   'https://support.wsoc.me/hc/en-us/signin?return_to=https%3A%2F%2Fsupport.wsoc.me%2Fhc%2Fen-us';
@@ -80,7 +81,6 @@ async function openAppOrFallback(deepLink: string, webUrl: string, appStoreUrl: 
       await WebBrowser.openBrowserAsync(webUrl);
     }
   } catch {
-    console.log('Deep link failed, opening web URL');
     await WebBrowser.openBrowserAsync(webUrl);
   }
 }
@@ -116,13 +116,10 @@ export default function HomeScreen() {
     await WebBrowser.openBrowserAsync(SUPPORT_SIGN_IN_URL);
   }, []);
 
-  const handleWebLink = useCallback(
-    (item: (typeof WEB_LINKS)[number]) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      openAppOrFallback(item.deepLink, item.webUrl, item.appStoreUrl);
-    },
-    []
-  );
+  const handleWebLink = useCallback((item: (typeof WEB_LINKS)[number]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    openAppOrFallback(item.deepLink, item.webUrl, item.appStoreUrl);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     await refresh();
@@ -143,12 +140,18 @@ export default function HomeScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerText}>
-              <Text style={styles.greeting}>Technical Support</Text>
-              <Text style={styles.subtitle}>Woods System of Care</Text>
+        <LinearGradient
+          colors={['rgba(95,47,153,0.12)', 'rgba(95,47,153,0.04)', 'rgba(255,255,255,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heroCard}
+        >
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroBadge}>
+              <Sparkles size={13} color={Colors.primary} />
+              <Text style={styles.heroBadgeText}>WSOC Support</Text>
             </View>
+
             <View style={styles.logoWrap}>
               <Image
                 source={{
@@ -160,7 +163,12 @@ export default function HomeScreen() {
               />
             </View>
           </View>
-        </View>
+
+          <Text style={styles.heroTitle}>Technical Support</Text>
+          <Text style={styles.heroSubtitle}>
+            Search help articles, open support tools, and get instant assistance.
+          </Text>
+        </LinearGradient>
 
         <View style={styles.searchContainer}>
           <SearchBar value={search} onChangeText={setSearch} />
@@ -171,17 +179,21 @@ export default function HomeScreen() {
             {isSearching && (
               <View style={styles.searchingRow}>
                 <ActivityIndicator size="small" color={Colors.primary} />
-                <Text style={styles.searchingText}>Searching...</Text>
+                <Text style={styles.searchingText}>Searching articles...</Text>
               </View>
             )}
+
             <Text style={styles.sectionTitle}>
               {displayResults.length} result{displayResults.length !== 1 ? 's' : ''}
             </Text>
+
             {displayResults.length === 0 && !isSearching ? (
               <View style={styles.emptyState}>
-                <HelpCircle size={40} color={Colors.textTertiary} />
+                <View style={styles.emptyIconCircle}>
+                  <HelpCircle size={36} color={Colors.textTertiary} />
+                </View>
                 <Text style={styles.emptyTitle}>No articles found</Text>
-                <Text style={styles.emptySubtitle}>Try a different search term</Text>
+                <Text style={styles.emptySubtitle}>Try another keyword or phrase</Text>
               </View>
             ) : (
               displayResults.map((article) => (
@@ -193,80 +205,65 @@ export default function HomeScreen() {
           <>
             <Pressable
               onPress={handleSubmitTicket}
-              style={({ pressed }) => [
-                styles.glassActionCard,
-                pressed && styles.glassActionCardPressed,
-              ]}
+              style={({ pressed }) => [styles.primaryActionCard, pressed && styles.cardPressed]}
               testID="submit-ticket"
             >
-              {({ pressed }) => (
-                <>
-                  {pressed && <View style={styles.glassActiveTint} />}
-                  <View style={[styles.glassIconWrap, { backgroundColor: Colors.primaryLight }]}>
-                    <TicketPlus size={21} color={Colors.primary} />
-                  </View>
-                  <View style={styles.glassCardContent}>
-                    <Text style={styles.glassCardTitle}>Submit a Ticket</Text>
-                    <Text style={styles.glassCardSubtitle}>Create a new support request</Text>
-                  </View>
-                  <ArrowRight size={17} color={Colors.textTertiary} />
-                </>
-              )}
+              <View style={styles.primaryActionIcon}>
+                <TicketPlus size={22} color={Colors.primary} />
+              </View>
+              <View style={styles.primaryActionContent}>
+                <Text style={styles.primaryActionTitle}>Submit a Ticket</Text>
+                <Text style={styles.primaryActionSubtitle}>Create a new support request</Text>
+              </View>
+              <ArrowRight size={18} color={Colors.textTertiary} />
             </Pressable>
 
             <Pressable
               onPress={() => router.push('/scanner' as any)}
-              style={({ pressed }) => [
-                styles.glassActionCard,
-                pressed && styles.glassActionCardPressed,
-              ]}
+              style={({ pressed }) => [styles.primaryActionCard, pressed && styles.cardPressed]}
               testID="ai-solver-btn"
             >
-              {({ pressed }) => (
-                <>
-                  {pressed && <View style={styles.glassActiveTint} />}
-                  <View style={[styles.glassIconWrap, { backgroundColor: '#F0E6FA' }]}>
-                    <MessageCircle size={21} color={Colors.primary} />
-                  </View>
-                  <View style={styles.glassCardContent}>
-                    <Text style={styles.glassCardTitle}>Support Assistant</Text>
-                    <Text style={styles.glassCardSubtitle}>Snap an error & get instant help</Text>
-                  </View>
-                  <ArrowRight size={17} color={Colors.textTertiary} />
-                </>
-              )}
+              <View style={[styles.primaryActionIcon, { backgroundColor: '#F2EAFE' }]}>
+                <MessageCircle size={22} color={Colors.primary} />
+              </View>
+              <View style={styles.primaryActionContent}>
+                <Text style={styles.primaryActionTitle}>Support Assistant</Text>
+                <Text style={styles.primaryActionSubtitle}>Snap an error and get guided help</Text>
+              </View>
+              <ArrowRight size={18} color={Colors.textTertiary} />
             </Pressable>
 
             <View style={styles.actionRow}>
               <Pressable
                 onPress={handleMyTickets}
-                style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+                style={({ pressed }) => [styles.miniCard, pressed && styles.cardPressed]}
                 testID="my-tickets"
               >
-                <View style={styles.actionCardHighlight} />
-                <View style={[styles.actionIconWrap, { backgroundColor: Colors.successLight }]}>
+                <View style={[styles.miniIconWrap, { backgroundColor: Colors.successLight }]}>
                   <ClipboardList size={20} color={Colors.success} />
                 </View>
-                <Text style={styles.actionLabel}>My Tickets</Text>
-                <Text style={styles.actionHint}>Track requests</Text>
+                <Text style={styles.miniCardTitle}>My Tickets</Text>
+                <Text style={styles.miniCardSubtitle}>Track requests</Text>
               </Pressable>
+
               <Pressable
                 onPress={handleSignIn}
-                style={({ pressed }) => [styles.actionCard, pressed && styles.actionCardPressed]}
+                style={({ pressed }) => [styles.miniCard, pressed && styles.cardPressed]}
                 testID="sign-in"
               >
-                <View style={styles.actionCardHighlight} />
-                <View style={[styles.actionIconWrap, { backgroundColor: Colors.primaryLight }]}>
+                <View style={[styles.miniIconWrap, { backgroundColor: Colors.primaryLight }]}>
                   <LogIn size={20} color={Colors.primary} />
                 </View>
-                <Text style={styles.actionLabel}>Sign In</Text>
-                <Text style={styles.actionHint}>Support portal</Text>
+                <Text style={styles.miniCardTitle}>Sign In</Text>
+                <Text style={styles.miniCardSubtitle}>Support portal</Text>
               </Pressable>
             </View>
 
-            <Text style={styles.sectionLabel}>QUICK ACCESS</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionEyebrow}>Quick Access</Text>
+            </View>
+
             <View style={styles.webLinksGroup}>
-              <View style={styles.webLinksHighlight} />
               {WEB_LINKS.map((item, idx) => (
                 <React.Fragment key={item.id}>
                   {idx > 0 && <View style={styles.divider} />}
@@ -276,16 +273,14 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>Featured Articles</Text>
-                <Pressable
-                  onPress={() => router.push('/categories' as any)}
-                  style={styles.seeAllBtn}
-                >
+                <Pressable onPress={() => router.push('/categories' as any)} style={styles.seeAllBtn}>
                   <Text style={styles.seeAllText}>See all</Text>
                   <ArrowRight size={14} color={Colors.primary} />
                 </Pressable>
               </View>
+
               {isLoading ? (
                 <View style={styles.loadingArticles}>
                   <ActivityIndicator size="small" color={Colors.primary} />
@@ -306,7 +301,7 @@ export default function HomeScreen() {
             style={styles.affiliateImage}
             resizeMode="contain"
           />
-          <Text style={styles.affiliateText}>Proudly Affiliated with Woods System of Care</Text>
+          <Text style={styles.affiliateText}>Proudly affiliated with Woods System of Care</Text>
         </View>
 
         <View style={{ height: 110 }} />
@@ -327,10 +322,12 @@ const WebLinkRow = React.memo(function WebLinkRow({ item, onPress }: WebLinkRowP
       style={({ pressed }) => [styles.webLinkRow, pressed && styles.webLinkRowPressed]}
       testID={`weblink-${item.id}`}
     >
-      <Image source={{ uri: item.iconUrl }} style={styles.webLinkIcon} />
-      <View style={styles.webLinkContent}>
-        <Text style={styles.webLinkTitle}>{item.title}</Text>
-        <Text style={styles.webLinkSubtitle}>{item.subtitle}</Text>
+      <View style={styles.webLinkLeft}>
+        <Image source={{ uri: item.iconUrl }} style={styles.webLinkIcon} />
+        <View style={styles.webLinkContent}>
+          <Text style={styles.webLinkTitle}>{item.title}</Text>
+          <Text style={styles.webLinkSubtitle}>{item.subtitle}</Text>
+        </View>
       </View>
       <ChevronRight size={18} color={Colors.textTertiary} />
     </Pressable>
@@ -342,153 +339,157 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
+
   scrollContent: {
     paddingHorizontal: 20,
+    paddingBottom: 10,
   },
-  header: {
+
+  heroCard: {
     marginTop: 16,
-    marginBottom: 6,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerText: {
-    flex: 1,
-  },
-  logoWrap: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
+    marginBottom: 10,
+    padding: 20,
+    borderRadius: 28,
     backgroundColor: Colors.glassCard,
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 12,
-    shadowColor: Colors.glassCardShadow,
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowColor: 'rgba(30, 20, 60, 0.10)',
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 24,
+    elevation: 6,
     overflow: 'hidden',
   },
-  logo: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '800' as const,
+
+  heroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.55)',
+  },
+
+  heroBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+
+  heroTitle: {
+    marginTop: 16,
+    fontSize: 30,
+    lineHeight: 34,
+    fontWeight: '800',
+    letterSpacing: -0.8,
     color: Colors.text,
-    letterSpacing: -0.6,
   },
-  subtitle: {
+
+  heroSubtitle: {
+    marginTop: 8,
     fontSize: 14,
+    lineHeight: 20,
     color: Colors.textSecondary,
-    marginTop: 3,
-    fontWeight: '400' as const,
+    maxWidth: '92%',
   },
-  searchContainer: {
-    marginVertical: 16,
-  },
-  glassActionCard: {
-    backgroundColor: Colors.glassCard,
+
+  logoWrap: {
+    width: 60,
+    height: 60,
     borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+
+  logo: {
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+  },
+
+  searchContainer: {
+    marginVertical: 14,
+  },
+
+  primaryActionCard: {
+    backgroundColor: Colors.glassCard,
+    borderRadius: 24,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    shadowColor: 'rgba(30, 20, 60, 0.08)',
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+    shadowColor: 'rgba(30,20,60,0.08)',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 14,
+    shadowRadius: 20,
     elevation: 4,
-    overflow: 'hidden',
-    position: 'relative' as const,
-    ...(Platform.OS === 'web'
-      ? {
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-        } as any
-      : {}),
   },
-  glassActionCardPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  glassActiveTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(95, 47, 153, 0.07)',
-    borderRadius: 20,
-  },
-  glassIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
+
+  primaryActionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    backgroundColor: Colors.primaryLight,
   },
-  glassCardContent: {
+
+  primaryActionContent: {
     flex: 1,
   },
-  glassCardTitle: {
+
+  primaryActionTitle: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700',
     color: Colors.text,
   },
-  glassCardSubtitle: {
+
+  primaryActionSubtitle: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
   },
+
   actionRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 18,
+    marginBottom: 22,
+    marginTop: 2,
   },
-  actionCard: {
+
+  miniCard: {
     flex: 1,
     backgroundColor: Colors.glassCard,
-    borderRadius: 20,
+    borderRadius: 22,
     paddingVertical: 20,
     paddingHorizontal: 14,
     alignItems: 'center',
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    shadowColor: Colors.glassCardShadow,
-    shadowOffset: { width: 0, height: 6 },
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+    shadowColor: 'rgba(30,20,60,0.07)',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 16,
+    shadowRadius: 18,
     elevation: 4,
-    overflow: 'hidden',
-    position: 'relative' as const,
-    ...(Platform.OS === 'web'
-      ? {
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        } as any
-      : {}),
   },
-  actionCardHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 10,
-    right: 10,
-    height: '40%',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  actionCardPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.97 }],
-  },
-  actionIconWrap: {
+
+  miniIconWrap: {
     width: 48,
     height: 48,
     borderRadius: 16,
@@ -496,167 +497,201 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  actionLabel: {
+
+  miniCardTitle: {
     fontSize: 14,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: Colors.text,
-    textAlign: 'center' as const,
-  },
-  actionHint: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    textAlign: 'center' as const,
+    textAlign: 'center',
   },
 
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textTertiary,
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  webLinksGroup: {
-    backgroundColor: Colors.glassCard,
-    borderRadius: 20,
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    overflow: 'hidden',
-    marginBottom: 24,
-    shadowColor: Colors.glassCardShadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 16,
-    elevation: 4,
-    position: 'relative' as const,
-    ...(Platform.OS === 'web'
-      ? {
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        } as any
-      : {}),
-  },
-  webLinksHighlight: {
-    position: 'absolute',
-    top: 0,
-    left: 12,
-    right: 12,
-    height: '30%',
-    backgroundColor: 'rgba(255,255,255,0.20)',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    zIndex: 0,
-  },
-  webLinkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    gap: 12,
-  },
-  webLinkRowPressed: {
-    backgroundColor: 'rgba(95, 47, 153, 0.04)',
-  },
-  webLinkIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-  },
-  webLinkContent: {
-    flex: 1,
-  },
-  webLinkTitle: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.text,
-  },
-  webLinkSubtitle: {
-    fontSize: 12,
+  miniCardSubtitle: {
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
+    textAlign: 'center',
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: Colors.borderLight,
-    marginLeft: 68,
+
+  cardPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.95,
   },
+
   section: {
     marginBottom: 24,
   },
+
   sectionHeader: {
+    marginBottom: 10,
+  },
+
+  sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: Colors.text,
-    marginBottom: 12,
+
+  sectionEyebrow: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textTertiary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginLeft: 2,
   },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+
   seeAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginBottom: 12,
   },
+
   seeAllText: {
     fontSize: 13,
-    fontWeight: '600' as const,
+    fontWeight: '700',
     color: Colors.primary,
   },
+
+  webLinksGroup: {
+    backgroundColor: Colors.glassCard,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.34)',
+    overflow: 'hidden',
+    marginBottom: 26,
+    shadowColor: 'rgba(30,20,60,0.07)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+
+  webLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+
+  webLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  webLinkRowPressed: {
+    backgroundColor: 'rgba(95,47,153,0.05)',
+  },
+
+  webLinkIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    marginRight: 12,
+  },
+
+  webLinkContent: {
+    flex: 1,
+  },
+
+  webLinkTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+
+  webLinkSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.borderLight,
+    marginLeft: 70,
+  },
+
   loadingArticles: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    paddingVertical: 24,
+    paddingVertical: 26,
   },
+
   loadingText: {
     fontSize: 14,
     color: Colors.textSecondary,
   },
+
   searchingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
+
   searchingText: {
     fontSize: 13,
     color: Colors.textSecondary,
   },
+
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
+    paddingVertical: 42,
   },
+
+  emptyIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: Colors.glassCard,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700',
     color: Colors.text,
   },
+
   emptySubtitle: {
     fontSize: 13,
     color: Colors.textSecondary,
+    marginTop: 4,
   },
+
   affiliateSection: {
     alignItems: 'center',
-    marginTop: 2,
+    marginTop: 4,
     paddingHorizontal: 10,
   },
+
   affiliateImage: {
     width: '100%',
-    height: 90,
-    marginBottom: 0,
+    height: 92,
+    marginBottom: 2,
   },
+
   affiliateText: {
     fontSize: 11,
-    fontWeight: '500' as const,
+    fontWeight: '500',
     color: Colors.textTertiary,
-    textAlign: 'center' as const,
-    letterSpacing: 0.1,
+    textAlign: 'center',
+    letterSpacing: 0.15,
   },
 });
