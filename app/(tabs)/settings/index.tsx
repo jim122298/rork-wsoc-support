@@ -105,14 +105,7 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.headerSection}>
-        <View style={styles.headerRow}>
-          <Text style={styles.pageTitle}>More</Text>
-          <Image
-            source={{ uri: 'https://raw.githubusercontent.com/jim122298/WSOC-App-Assets/main/PNG%20Clip%20Art/wsoc_helpdesk_dashboard_laptop.png' }}
-            style={styles.headerArt}
-            resizeMode="contain"
-          />
-        </View>
+        <Text style={styles.pageTitle}>More</Text>
       </View>
 
       <ScrollView
@@ -212,11 +205,6 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.footer}>
-          <Image
-            source={{ uri: 'https://raw.githubusercontent.com/jim122298/WSOC-App-Assets/main/PNG%20Clip%20Art/wsoc_affiliate_support_ring.png' }}
-            style={styles.footerArt}
-            resizeMode="contain"
-          />
           <Text style={styles.footerText}>Woods System of Care</Text>
           <Text style={styles.footerVersion}>Technical Support v3.0</Text>
         </View>
@@ -237,20 +225,11 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 4,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
   pageTitle: {
     fontSize: 28,
     fontWeight: '800' as const,
     color: Colors.text,
     letterSpacing: -0.6,
-  },
-  headerArt: {
-    width: 72,
-    height: 72,
   },
   list: {
     paddingHorizontal: 20,
@@ -357,12 +336,7 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     paddingVertical: 32,
-    gap: 8,
-  },
-  footerArt: {
-    width: 100,
-    height: 100,
-    marginBottom: 4,
+    gap: 4,
   },
   footerText: {
     fontSize: 14,

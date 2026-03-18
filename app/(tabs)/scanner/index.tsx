@@ -433,7 +433,7 @@ export default function AIProblemSolverScreen() {
             <View style={styles.glowCornerTL} />
             <View style={styles.glowCornerBR} />
             <Image
-              source={{ uri: 'https://raw.githubusercontent.com/jim122298/WSOC-App-Assets/main/Gifs/wsoc_affiliates_ai_thinking_loader.gif' }}
+              source={{ uri: 'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGd5dHdrbDdrOWFweDY5bDg1amNwMnhpdHNlcW5qZzY1bXVmY25zOSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/bCO0RUAdNYo4IULnFN/giphy.gif' }}
               style={styles.loadingGif}
               resizeMode="contain"
             />
