@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -140,7 +140,7 @@ export default function LoadingScreen({ onFinish, duration = 6000 }: LoadingScre
 
         <View style={styles.loaderContainer}>
           <Image
-            source={{ uri: 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzB0c2Vydmd6eTJ6ZXVoMDZzMG5obGM4ZzN4d2VxODN4aXczeXY1OSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9cw/SpkRfu9eoAHCiVd5Mo/giphy.gif' }}
+            source={{ uri: 'https://raw.githubusercontent.com/jim122298/WSOC-App-Assets/main/Gifs/woods_system_of_care_orbit_loader.gif' }}
             style={styles.loaderGif}
             resizeMode="contain"
           />

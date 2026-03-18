@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Platform,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookmarkX } from 'lucide-react-native';
+
 import { Colors } from '@/constants/colors';
 import { useZendesk } from '@/contexts/ZendeskContext';
 import { useBookmarks } from '@/contexts/BookmarkContext';
@@ -38,9 +38,11 @@ export default function BookmarksScreen() {
       >
         {bookmarkedArticles.length === 0 ? (
           <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <BookmarkX size={36} color={Colors.textTertiary} />
-            </View>
+            <Image
+              source={{ uri: 'https://raw.githubusercontent.com/jim122298/WSOC-App-Assets/main/PNG%20Clip%20Art/wsoc_branded_headphones.png' }}
+              style={styles.emptyArt}
+              resizeMode="contain"
+            />
             <Text style={styles.emptyTitle}>No saved articles</Text>
             <Text style={styles.emptySubtitle}>
               Tap the bookmark icon on any article to save it for quick access
@@ -83,31 +85,14 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 80,
+    paddingVertical: 40,
     paddingHorizontal: 40,
     gap: 10,
   },
-  emptyIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
-    backgroundColor: Colors.glassCard,
-    borderWidth: 0.5,
-    borderColor: Colors.glassCardBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+  emptyArt: {
+    width: 180,
+    height: 180,
     marginBottom: 8,
-    shadowColor: Colors.glassCardShadow,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1,
-    shadowRadius: 14,
-    elevation: 4,
-    ...(Platform.OS === 'web'
-      ? {
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        } as any
-      : {}),
   },
   emptyTitle: {
     fontSize: 18,
