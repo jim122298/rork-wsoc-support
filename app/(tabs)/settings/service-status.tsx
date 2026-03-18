@@ -28,13 +28,13 @@ import {
 
 import { Colors } from '@/constants/colors';
 import {
-  MOCK_SERVICES,
   ServiceInfo,
   ServiceStatusType,
   getStatusColor,
   getStatusLabel,
   getOverallStatus,
 } from '@/constants/serviceStatus';
+import { checkAllServices } from '@/services/serviceStatus';
 
 type LoadState = 'loading' | 'success' | 'error' | 'empty';
 
@@ -220,11 +220,9 @@ export default function ServiceStatusScreen() {
   const [modalVisible, setModalVisible] = useState<boolean>(false);
 
   const fetchServices = useCallback(async () => {
-    console.log('[ServiceStatus] Fetching service status...');
+    console.log('[ServiceStatus] Fetching live service status...');
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      const data = MOCK_SERVICES;
+      const data = await checkAllServices();
       if (data.length === 0) {
         setLoadState('empty');
         setServices([]);
