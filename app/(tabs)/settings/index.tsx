@@ -20,8 +20,10 @@ import {
   ClipboardList,
   Download,
   Sparkles,
+  Activity,
 } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { BASE_URL } from '@/constants/articles';
 
@@ -77,6 +79,7 @@ function SettingsRow({ icon, title, subtitle, onPress, color }: SettingsRowProps
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const openPortal = useCallback(async () => {
     await WebBrowser.openBrowserAsync(BASE_URL);
@@ -84,10 +87,6 @@ export default function SettingsScreen() {
 
   const openCommunity = useCallback(async () => {
     await WebBrowser.openBrowserAsync(BASE_URL + '/community/posts');
-  }, []);
-
-  const openEmail = useCallback(() => {
-    Linking.openURL('mailto:support@wsoc.me');
   }, []);
 
   const openSubmitTicket = useCallback(async () => {
@@ -99,7 +98,7 @@ export default function SettingsScreen() {
   }, []);
 
   const openAppStore = useCallback((url: string) => {
-    Linking.openURL(url);
+    void Linking.openURL(url);
   }, []);
 
   return (
@@ -153,6 +152,18 @@ export default function SettingsScreen() {
               </Pressable>
             </React.Fragment>
           ))}
+        </View>
+
+        <Text style={styles.sectionLabel}>SERVICES</Text>
+        <View style={styles.group}>
+          <View style={styles.groupHighlight} />
+          <SettingsRow
+            icon={<Activity size={20} color="#34C759" />}
+            title="Check Status"
+            subtitle="View uptime for key services"
+            onPress={() => router.push('/settings/service-status')}
+            color="#34C759"
+          />
         </View>
 
         <Text style={styles.sectionLabel}>SUPPORT</Text>
